@@ -397,27 +397,28 @@ export function createUI(root: HTMLElement): UIAPI {
     padModal = null;
   }
 
-  function openPad(kind: 'keypad' | 'console', onPress: (sym: Shape | Glyph) => void, onClose: () => void) {
+  function openPad(kind: 'keypad' | 'console' | 'file', onPress: (sym: any) => void, onClose: () => void) {
     closePad();
     const isKeypad = kind === 'keypad';
-    const syms: (Shape | Glyph)[] = isKeypad ? SHAPES : GLYPHS;
-    const charOf = (s: Shape | Glyph) => (isKeypad ? SHAPE_CHAR[s as Shape] : GLYPH_CHAR[s as Glyph]) ?? '?';
-    const slots = isKeypad ? 4 : 5;
+    const isFile = kind === 'file';
+    const syms: any[] = isKeypad ? SHAPES : isFile ? ['TAKE', 'USE', 'LOOK', 'WALK'] : GLYPHS;
+    const charOf = (s: any) => isKeypad ? (SHAPE_CHAR[s as Shape] ?? '?') : isFile ? s : (GLYPH_CHAR[s as Glyph] ?? '?');
+    const slots = isKeypad ? 4 : isFile ? 3 : 5;
 
     const modal = el('div', 'ui-modal ui-hit');
     const card = el('div', 'ui-card ui-pad');
     const hdr = el('div', 'ui-pad-hdr');
     const x = el('button', 'ui-x', '×');
     x.title = 'Close (Esc)';
-    hdr.append(el('span', '', isKeypad ? 'CELL 14 — DOOR KEYPAD' : 'OVERRIDE CONSOLE — HALL'), x);
+    hdr.append(el('span', '', isKeypad ? 'CELL 14 — DOOR KEYPAD' : isFile ? 'DRAWER 14 — COMBINATION' : 'OVERRIDE CONSOLE — HALL'), x);
     const disp = el('div', 'ui-disp');
     const cells: HTMLSpanElement[] = [];
-    for (let i = 0; i < slots; i++) { const s = el('span'); cells.push(s); disp.appendChild(s); }
-    const keys = el('div', `ui-keys ${isKeypad ? 'ui-k4' : 'ui-k6'}`);
-    let entry: (Shape | Glyph)[] = [];
+    for (let i = 0; i < slots; i++) { const s = el('span'); if (isFile) s.style.fontSize = '18px'; cells.push(s); disp.appendChild(s); }
+    const keys = el('div', `ui-keys ${isKeypad || isFile ? 'ui-k4' : 'ui-k6'}`);
+    let entry: any[] = [];
     const paint = () => cells.forEach((c, i) => (c.textContent = entry[i] ? charOf(entry[i]) : ''));
 
-    const press = (s: Shape | Glyph, btn?: HTMLElement) => {
+    const press = (s: any, btn?: HTMLElement) => {
       if (entry.length >= slots) { clearTimeout(padClearTimer); entry = []; disp.classList.remove('ui-full'); }
       entry.push(s);
       paint();
@@ -432,6 +433,7 @@ export function createUI(root: HTMLElement): UIAPI {
     const btns: HTMLButtonElement[] = [];
     syms.forEach((s) => {
       const b = el('button', 'ui-key', charOf(s));
+      if (isFile) b.style.fontSize = '18px';
       b.title = String(s);
       b.addEventListener('click', () => press(s, b));
       keys.appendChild(b);

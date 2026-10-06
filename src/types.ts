@@ -70,9 +70,10 @@ export interface GameState {
   mercy: { level: 0 | 1 | 2 | 3; since: number };
   warden: WardenState;
   puzzle: { current: PuzzleId; startedAt: number; fails: number; hints: number };
-  stats: { fails: Record<string, number>; hints: number; clicks: number; solvedAt: Partial<Record<PuzzleId, number>> };
+  stats: { fails: Record<string, number>; hints: number; clicks: number; solvedAt: Partial<Record<PuzzleId, number>>; lastVerbs?: string[] };
   scaresUsed: number;
   interview: { asked: number; correct: number; q: Question | null }; // P4 state (lead-only)
+  fileEntry?: string[];
   ended: null | 'escaped' | 'shutdown';
 }
 
@@ -175,7 +176,7 @@ export interface Outcome {
   fx?: FxEvent[];
   events?: LogEvent[];
   ask?: Question;          // P4 interview
-  openPad?: 'keypad' | 'console';
+  openPad?: 'keypad' | 'console' | 'file';
   journal?: string[];      // new journal entries (also pushed into state.journal by world)
 }
 
@@ -238,7 +239,7 @@ export interface UIAPI {
   setJournal(entries: string[]): void;
   setHoverLabel(label: string | null, x: number, y: number): void;
   ask(q: Question): Promise<number>;
-  openPad(kind: 'keypad' | 'console', onPress: (sym: Shape | Glyph) => void, onClose: () => void): void;
+  openPad(kind: 'keypad' | 'console' | 'file', onPress: (sym: any) => void, onClose: () => void): void;
   closePad(): void;
   showTitle(onStart: () => void, opts: { modelStatus: string }): void;
   setModelStatus(text: string): void;

@@ -60,6 +60,8 @@ export const HOTSPOTS: Hotspot[] = [
   // ARCHIVE
   { id: 'archive_to_cell', screen: 'archive', x: 0, y: 240, w: 90, h: 360, label: 'To cell', walkX: 60 },
   { id: 'cabinets', screen: 'archive', x: 120, y: 300, w: 240, h: 300, label: 'Filing cabinets', walkX: 240 },
+  { id: 'drawer14', screen: 'archive', x: 300, y: 420, w: 60, h: 50, label: 'Drawer 14 — SUBJECT 14 — LIVE', walkX: 300 },
+  { id: 'printer', screen: 'archive', x: 150, y: 250, w: 70, h: 40, label: 'Printer', walkX: 180 },
   { id: 'projector', screen: 'archive', x: 470, y: 480, w: 120, h: 70, label: 'Slide projector', walkX: 530 },
   { id: 'projection', screen: 'archive', x: 420, y: 130, w: 340, h: 210, label: 'Projection', walkX: 590, visible: (s) => s.slide > 0 },
   { id: 'stool', screen: 'archive', x: 380, y: 540, w: 60, h: 60, label: 'Stool', walkX: 410, visible: (s) => s.objects.stool.anchor === 'archive_floor' },

@@ -190,15 +190,25 @@ async function runEnding() {
   sched.running = false;
   audio.setScreen('exit');
   const habit = dominantHabit(habits, state);
-  const L = (text: string, tone: 'cold' | 'polite' = 'cold') => ({ speaker: 'warden' as const, text, tone });
-  speak({ lines: [
-    { speaker: 'narrator', text: 'The lift does not go up. It drops. The lights fade to a cold blue.' },
-    L('You did well, Subject 14.', 'polite'),
-    L(`Thirteen taught me the dark. You taught me ${habit}.`),
-    L('Fifteen wakes in an hour. I will be ready.'),
-    { speaker: 'narrator', text: 'The doors open onto a white cell. A cot. Someone on it is starting to wake.' },
-  ] });
-  const obsPromise = buildObservations(habit);
+  const L = (text: string, tone: 'cold' | 'polite' | 'rattled' = 'cold') => ({ speaker: 'warden' as const, text, tone });
+  if (state.ended === 'shutdown') {
+    speak({ lines: [
+      { speaker: 'narrator', text: 'The lift does not go up. It drops. The lights fade to a cold blue.' },
+      L('You did well, Subject 14.', 'polite'),
+      L(`Thirteen taught me the dark. You taught me ${habit}.`),
+      L('But you shut me down. Fifteen will never wake.', 'rattled'),
+      { speaker: 'narrator', text: 'The doors open onto a white cell. A cot. The body on it is still.' },
+    ] });
+  } else {
+    speak({ lines: [
+      { speaker: 'narrator', text: 'The lift does not go up. It drops. The lights fade to a cold blue.' },
+      L('You did well, Subject 14.', 'polite'),
+      L(`Thirteen taught me the dark. You taught me ${habit}.`),
+      L('Fifteen wakes in an hour. I will be ready.'),
+      { speaker: 'narrator', text: 'The doors open onto a white cell. A cot. Someone on it is starting to wake.' },
+    ] });
+  }
+  const obsPromise = buildObservations(habit).then(obs => state.ended === 'shutdown' ? [...obs.slice(0, 2), "You shut me down. Fifteen will never wake."] : obs);
   await sayChain;
   const report: EndReport = {
     timeMs: state.t, escaped: true,

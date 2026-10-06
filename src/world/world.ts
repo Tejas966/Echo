@@ -11,7 +11,20 @@ import {
 class Out {
   o: Outcome = { lines: [], sfx: [], fx: [], events: [], journal: [] };
   constructor(private s: GameState) {}
-  ev(kind: LogEvent['kind'], a: string, b?: string) { this.o.events!.push({ t: this.s.t, kind, a, b }); return this; }
+  ev(kind: LogEvent['kind'], a: string, b?: string) {
+    this.o.events!.push({ t: this.s.t, kind, a, b });
+    let v = '';
+    if (kind === 'take') v = 'TAKE';
+    else if (kind === 'use') v = 'USE';
+    else if (kind === 'click' || kind === 'look') v = 'LOOK';
+    else if (kind === 'walk' || kind === 'enter') v = 'WALK';
+    if (v && !a.startsWith('drawer14') && !a.startsWith('printer') && a !== 'file') {
+      if (!this.s.stats.lastVerbs) this.s.stats.lastVerbs = [];
+      this.s.stats.lastVerbs.push(v);
+      if (this.s.stats.lastVerbs.length > 3) this.s.stats.lastVerbs.shift();
+    }
+    return this;
+  }
   say(text: string) { this.o.lines!.push({ speaker: 'narrator', text }); return this; }
   warden(text: string, tone?: Tone) { this.o.lines!.push({ speaker: 'warden', text, tone: tone ?? this.s.warden.tone }); return this; }
   s13(text: string) { this.o.lines!.push({ speaker: 'subject13', text }); return this; }
@@ -193,7 +206,21 @@ export function interact(s: GameState, id: string, holding: ItemId | null): Outc
       o.warden(s.warden.blind ? '...' : 'Yes, Subject 14. I am watching. I am always watching.'); break;
 
     // ----- ARCHIVE -----
-    case 'cabinets': o.say('Files for subjects 1 to 13. Drawer 14 is locked. Its label reads: SUBJECT 14 — LIVE.'); break;
+    case 'cabinets': o.say('Row upon row of subject files.'); break;
+    case 'printer': {
+      const lv = (s.stats.lastVerbs ?? ['WALK', 'LOOK', 'LOOK']);
+      const verbs = lv.length === 3 ? lv : ['WALK', 'LOOK', 'LOOK'];
+      o.sfx('typewriter').say(`The printer chatters: ${verbs.join(' - ')}.`);
+      o.journal(`Ticker tape: ${verbs.join(' - ')}`);
+      o.warden('Your file is always current.', 'polite');
+      bump(s);
+      break;
+    }
+    case 'drawer14': {
+      if (s.flags.p7_solved) { o.say('Drawer 14 is unlocked. Inside is empty.'); break; }
+      s.fileEntry = []; o.o.openPad = 'file'; o.sfx('keypad_beep');
+      break;
+    }
     case 'stool': o.say('A metal stool. Sturdy, and bolted to nothing.'); break;
     case 'breaker': o.say('Four fuse slots: CAMERA, LIGHTS, CELL DOOR, SHUTTER. ' + slotSummary(s)); break;
     case 'fuse_camera': case 'fuse_archive_lights': case 'fuse_cell_door': case 'fuse_shutter':
@@ -227,6 +254,11 @@ export function interact(s: GameState, id: string, holding: ItemId | null): Outc
     case 'intercom': intercom(s, o); break;
     case 'lift_panel':
       if (!s.flags.cage_open) { o.say('A steel mesh cage covers the console. The intercom crackles beside it.'); break; }
+      if (holding === 'core_key') {
+        s.ended = 'shutdown';
+        o.warden("You wouldn't—", 'rattled').say('The Eye goes dark. For the first time, the facility is silent.');
+        return mergeOut(o, enterScreen(s, 'exit', 640));
+      }
       if (!s.flags.lift_powered) { o.say('The console is dead. No pressure in the lift hydraulics.'); break; }
       s.consoleEntry = []; o.o.openPad = 'console'; o.sfx('keypad_beep'); break;
     case 'window_hall': windowHall(s, o); break;
@@ -402,9 +434,31 @@ export function answer(s: GameState, idx: number): Outcome {
 }
 
 // ---------- pads ----------
-export function pressPad(s: GameState, kind: 'keypad' | 'console', sym: Shape | Glyph): Outcome & { close?: boolean } {
+export function pressPad(s: GameState, kind: 'keypad' | 'console' | 'file', sym: any): Outcome & { close?: boolean } {
   const o = new Out(s);
   o.sfx('keypad_beep');
+
+  if (kind === 'file') {
+    if (!s.fileEntry) s.fileEntry = [];
+    s.fileEntry.push(sym);
+    if (s.fileEntry.length < 3) return o.done();
+    const entry = s.fileEntry;
+    const target = (s.stats.lastVerbs ?? []).length === 3 ? s.stats.lastVerbs : ['WALK', 'LOOK', 'LOOK'];
+    const ok = entry.every((v, i) => v === target![i]);
+    o.ev('use', `file_pad:${entry.join('-')}`);
+    if (ok) {
+      s.flags.p7_solved = true;
+      give(s, 'core_key');
+      o.sfx('door_open', 'pickup').say('The dial lock clicks. Inside is a heavy brass key: the CORE KEY.');
+      o.journal('Drawer 14 contained the CORE KEY.');
+      solveExtra(s, o, 'p7');
+      return { ...o.done(), close: true };
+    }
+    fail(s, o, `file_pad:${entry.join('-')}`);
+    o.say('The dials reset.');
+    return o.done();
+  }
+
   if (kind === 'keypad') {
     s.keypadEntry.push(sym as Shape);
     if (s.keypadEntry.length < 4) return o.done();

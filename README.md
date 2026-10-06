@@ -128,11 +128,11 @@ The real scheduler plus the bad-brain mock: **0 unsafe actions applied, room sti
 | Metric | Result |
 |---|---|
 | Valid JSON | **100%** |
-| Valid targets | **97.2%** |
-| Appropriate action for the situation | **80.6%** |
+| Valid targets | **100.0%** |
+| Appropriate action for the situation | **77.8%** |
 | Unsafe actions after rules | **0** |
-| Vetoed / amended by rules | 12.5% |
-| Latency p50 / p95 | **504 ms / 638 ms** |
+| Vetoed / amended by rules | 23.6% |
+| Latency p50 / p95 | **569 ms / 1384 ms** |
 
 **What we learned:**
 - **Thinking mode:** with Ollama's default thinking on, Gemma 4 returned **empty content** because it spent its whole token budget thinking. `think:false` is required.
