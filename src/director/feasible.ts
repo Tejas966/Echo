@@ -27,7 +27,9 @@ export function feasibleTargets(s: GameState, vt: ValidTargets, ctx: CooldownCtx
     if (a === 'adjust_tension' && struggling) targets = targets.filter((t) => t === 'down');
     out[a] = cooling || hostileGap || unaffordable || mercyBlocked || scareBlocked || repetitive ? [] : targets;
   }
-  out.do_nothing = ['-'];
+  // keep the Warden present: after 3 silent turns in a row, silence is not offered
+  const quiet = s.warden.lastActions.slice(-3);
+  out.do_nothing = quiet.length === 3 && quiet.every((q) => q.action === 'do_nothing') && ACTIONS.some((a) => a !== 'do_nothing' && out[a].length) ? [] : ['-'];
   return out;
 }
 

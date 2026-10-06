@@ -50,7 +50,7 @@ const sched = new Scheduler({
   onThinking: (on) => { frame.thinking = on; audio.setThinking(on); },
   onStatus: (t) => { mind.setMode(t); ui.setModelStatus(`Warden brain: ${t}`); },
 }, { model: params.get('model') ?? undefined });
-sched.onApply((d) => dispatch(applyWardenDecision(state, d)));
+sched.onApply((d) => dispatch(applyWardenDecision(state, d), d.action !== 'reveal_hint'));
 
 const mind = new MindPanel(document.getElementById('mind-root')!, {
   onMode: (m: Mode) => sched.setMode(m),
@@ -67,15 +67,19 @@ function refreshMindStats() {
 
 // ---------- outcome dispatch ----------
 let sayChain: Promise<void> = Promise.resolve();
-function speak(o: Outcome) {
+let pendingLines = 0;
+/** ambient = Warden chatter from the director; dropped when story lines are already queued (keeps dialogue current). */
+function speak(o: Outcome, ambient = false) {
   for (const line of o.lines ?? []) {
+    if (ambient && pendingLines >= 1) continue;
     if (line.speaker === 'warden') state.warden.lineHistory = [...state.warden.lineHistory, line.text].slice(-6);
-    sayChain = sayChain.then(() => ui.say(line, line.speaker === 'warden' ? () => audio.blip(line.tone ?? state.warden.tone) : () => audio.sfx('typewriter', { volume: 0.25 })));
+    pendingLines++;
+    sayChain = sayChain.then(() => ui.say(line, line.speaker === 'warden' ? () => audio.blip(line.tone ?? state.warden.tone) : () => audio.sfx('typewriter', { volume: 0.25 }))).finally(() => { pendingLines--; });
   }
 }
 
-function dispatch(o: Outcome) {
-  speak(o);
+function dispatch(o: Outcome, ambient = false) {
+  speak(o, ambient);
   for (const c of o.sfx ?? []) audio.sfx(c);
   for (const f of o.fx ?? []) gfx.fx(f);
   for (const e of o.events ?? []) onEvent(e);
