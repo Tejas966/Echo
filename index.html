@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Room That Fights Back</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #050608; overflow: hidden; font-family: 'Courier New', monospace; color: #d8e0e8; }
+    #app { position: relative; display: flex; height: 100%; }
+    #stage { position: relative; flex: 1; display: flex; align-items: center; justify-content: center; min-width: 0; }
+    #game { width: 100%; max-height: 100%; aspect-ratio: 16 / 9; display: block; cursor: crosshair; image-rendering: auto; }
+    #ui-root { position: absolute; inset: 0; pointer-events: none; }
+    #ui-root > * { pointer-events: auto; }
+    #mind-root { width: 0; transition: width 0.25s; overflow: hidden; background: #0b0e13; border-left: 1px solid #1f2733; }
+    #mind-root.open { width: 380px; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="stage">
+      <canvas id="game" width="1280" height="720"></canvas>
+      <div id="ui-root"></div>
+    </div>
+    <div id="mind-root"></div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
