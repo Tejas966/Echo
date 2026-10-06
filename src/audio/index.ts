@@ -77,7 +77,7 @@ export function createAudio(): AudioAPI {
     retarget(tSub.gain, smooth((x - 20) / 60) * 1.0, tc, t);
     retarget(tPad.gain, smooth((x - 40) / 50) * 0.9, tc, t);
     retarget(tPadLp.frequency, 300 + 1500 * clamp((x - 40) / 60), tc, t);
-    retarget(tWhine.gain, smooth((x - 75) / 25) * 0.08, tc * 1.5, t);
+    retarget(tWhine.gain, smooth((x - 75) / 25) * 0.02, tc * 1.5, t);
   }
 
   function startBed(s: ScreenId, fade: number): void {
@@ -185,7 +185,7 @@ export function createAudio(): AudioAPI {
       noise: { white: makeNoise(ctx, 'white'), pink: makeNoise(ctx, 'pink'), brown: makeNoise(ctx, 'brown', 5) },
       curves,
       reverbIn,
-      bed: new Bus(ctx, db(-15), 0.35, masterGain, reverbIn, 3),
+      bed: new Bus(ctx, db(-10), 0.35, masterGain, reverbIn, 3),
       tension: new Bus(ctx, db(-20), 0.25, masterGain, reverbIn, 0),
       sfx: new Bus(ctx, db(-10), 0.22, masterGain, reverbIn, 0),
       voice: new Bus(ctx, db(-8), 0.18, masterGain, reverbIn, 0),
@@ -363,7 +363,7 @@ export function createAudio(): AudioAPI {
     const fm = vowel.map((v) => v * rand(0.94, 1.06) * (tone === 'cold' ? 0.85 : 1));
     const f1 = filt(c, 'bandpass', fm[0], 7, gain(c, 2.6, env));
     const f2 = filt(c, 'bandpass', fm[1], 9, gain(c, 1.8, env));
-    const body = filt(c, 'lowpass', 700, 0.7, gain(c, 0.18, env));
+    const body = filt(c, 'lowpass', 700, 0.7, gain(c, 0.02, env));
     o.connect(f1); o.connect(f2); o.connect(body);
     o.start(t); o.stop(t + dur + 0.02);
     o.onended = () => o.disconnect();

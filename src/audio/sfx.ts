@@ -20,7 +20,7 @@ export const PRIO: Record<SfxCue, number> = {
 export const VOICE_BUS: Partial<Record<SfxCue, true>> = { hint: true, intercom: true };
 
 /** Minimum retrigger gap in ms (default 80). */
-export const MIN_GAP: Partial<Record<SfxCue, number>> = { typewriter: 25, hover: 60, keypad_beep: 40 };
+export const MIN_GAP: Partial<Record<SfxCue, number>> = { typewriter: 50, hover: 120, keypad_beep: 40, step: 250 };
 
 const ctxOf = (r: R) => r.c;
 
@@ -71,7 +71,7 @@ function footstep(r: R, t: number, surface: string, level: number, dest: AudioNo
 const recipes: Record<SfxCue, (r: R) => number> = {
   hover(r) {
     const c = r.c, g = gain(c, 0, filt(c, 'lowpass', 3000, 0.7, r.out));
-    perc(g.gain, r.t, 0.002, 0.07, 0.03);
+    perc(g.gain, r.t, 0.002, 0.02, 0.03);
     osc(c, 'sine', rand(1160, 1240), r.t, r.t + 0.06, g);
     return 0.06;
   },
@@ -113,7 +113,7 @@ const recipes: Record<SfxCue, (r: R) => number> = {
     return 0.32;
   },
   step(r) {
-    footstep(r, r.t, r.e.screen, 0.6, r.out, gain(r.c, r.e.screen === 'hall' ? 0.5 : 0.2, r.wet));
+    footstep(r, r.t, r.e.screen, 0.3, r.out, gain(r.c, r.e.screen === 'hall' ? 0.25 : 0.1, r.wet));
     return 0.4;
   },
   door_open(r) {
@@ -299,7 +299,7 @@ const recipes: Record<SfxCue, (r: R) => number> = {
       return 1.6;
     }
     const t = r.t + 0.3; // after the silence
-    const out = gain(c, 1.3, r.out); out.connect(gain(c, 0.7, r.wet));
+    const out = gain(c, 0.6, r.out); out.connect(gain(c, 0.4, r.wet));
     // clustered saw chord
     const lp = filt(c, 'lowpass', 6000, 1.5, out);
     lp.frequency.setValueAtTime(6000, t); lp.frequency.exponentialRampToValueAtTime(900, t + 1.4);
@@ -308,7 +308,7 @@ const recipes: Record<SfxCue, (r: R) => number> = {
       osc(c, 'sawtooth', f * rand(0.995, 1.005), t, t + 2, g);
     });
     // noise hit
-    burst(e, t, 'bandpass', 1500, 0.5, 0.8, 0.5, out);
+    burst(e, t, 'bandpass', 1500, 0.5, 0.4, 0.5, out);
     // FM screech rising
     const sg = gain(c, 0, filt(c, 'highpass', 600, 0.7, out));
     ahr(sg.gain, t, 0.04, 0.16, 0.35, 0.6);
@@ -450,9 +450,9 @@ const recipes: Record<SfxCue, (r: R) => number> = {
   },
   typewriter(r) {
     const e = r.e, t = r.t;
-    burst(e, t, 'highpass', 2000, 0.7, 0.18 * rand(0.7, 1), 0.012, r.out);
-    burst(e, t, 'bandpass', rand(800, 1000), 2, 0.15, 0.03, r.out);
-    thump(e, t + 0.005, 220, 140, 0.05, 0.03, r.out);
+    burst(e, t, 'highpass', 2000, 0.7, 0.04 * rand(0.7, 1), 0.012, r.out);
+    burst(e, t, 'bandpass', rand(800, 1000), 2, 0.05, 0.03, r.out);
+    thump(e, t + 0.005, 220, 140, 0.01, 0.03, r.out);
     return 0.08;
   },
 };
