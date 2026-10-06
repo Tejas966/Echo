@@ -31,8 +31,65 @@ npm run dev          # → http://localhost:5173
 | V | Warden spoken voice on/off (browser speech synthesis; deep, per-tone delivery) |
 | M | Mute |
 
-URL options: `?director=mock|scripted`, `?model=gemma4:e4b`.
+URL options:
+
+| Option | Effect |
+|---|---|
+| `?skipintro=1` | Skip the prologue and wake-up; recommended for demos |
+| `?novoice=1` | Start with the spoken voice off |
+| `?director=mock\|scripted` | Start with a different director |
+| `?model=gemma4:e4b` | Use a different Gemma model |
+
+The prologue can also be skipped live: press Space or click twice.
+
 If Ollama isn't running, the game says so and plays with the **scripted Warden** (degraded mode). It stays fully playable.
+
+A first playthrough takes about **20–25 minutes**, or longer with the optional puzzles. There's a 3.5-minute judge walkthrough in [`docs/demo-script.md`](docs/demo-script.md).
+
+---
+
+## See exactly what Gemma sees (for judges)
+
+Press **TAB** during play to open the **Game Master's Mind** panel. Every model call becomes a card, newest first:
+
+| On the card | What it is |
+|---|---|
+| Thumbnail | The **exact image sent to Gemma**: a 512×288 JPEG "director view" of the current room. Lighting is floored at 55% so the model can read the scene. If the player pulled the camera fuse, it's a black **NO SIGNAL** frame, because Gemma really is blind then. |
+| `saw:` | Gemma's own one-line description of that image, written **before** it decides |
+| Action line | The decision: `action → target (intensity)`, the spoken line, and Gemma's stated reason |
+| Verdict chip | `ACCEPTED` / `AMENDED` / `VETOED` / `FALLBACK`, the rules stage that caught it, and a plain-English reason, e.g. *"Veto: lift is the only route to EXIT"* |
+| "what it saw (prompt) / raw output" | Expands to the **full text snapshot** sent that turn, and Gemma's **raw, unedited JSON reply** with latency for every attempt (including retries and errors) |
+| `→ applied / dropped-stale / dropped-ttl` | Whether the decision actually reached the world |
+
+The panel header shows the mode (LIVE / MOCK / SCRIPTED / DEGRADED), decision counts, mean latency and a latency graph.
+
+Here is an example of the text snapshot Gemma receives each turn (built in `src/director/snapshot.ts`):
+
+```
+SCREEN hall | ACT 2 | t=14:32 | TENSION 48/100 | MERCY 0 | WARDEN_TONE mocking | CAMERA online
+LIGHTS hall=lit | DOORS cell_door:open shutter:open lift:closed
+SITUATION: stuck / struggling
+PLAYER zone=center idle=4s clicks_last10s=3 holding=nothing inventory=[cloth,token]
+PUZZLE current=p3 time_on=6:10 fails=3 hints_given=1 solved=[p1,p2]
+HABITS spam=low hiding=no rushing=no hint_reliance=med dark_user=yes breezing=no
+LAST_EVENTS: -42s click projector | -21s fail manifold:2/4 p3 | -3s click valve_blue
+YOUR_LAST_ACTIONS: 14:10 flicker_lights hall (accepted) | 14:20 lock_door lift (vetoed: SOLVABILITY)
+YOUR_LAST_LINES: "Fascinating. You tried that already."
+VALID_TARGETS: reveal_hint=[p3] speak=[polite,mocking,rattled,cold] play_sound=[drip,intercom] ...
+Decide your next action.
+```
+
+Here is an example of the reply it must produce. The format is enforced by a JSON Schema built per call, whose action list contains only actions the rules would currently allow (`src/director/feasible.ts`):
+
+```json
+{ "saw": "dim blue hall, subject at the manifold", "action": "reveal_hint", "target": "p3", "intensity": 1,
+  "line": "My records are complete, Subject 14. Mostly.", "reason": "Third manifold failure; nudge.", "confidence": 0.8 }
+```
+
+Where to find each fixed part of the request:
+- System prompt and few-shot examples: `src/director/prompt.ts`
+- Request options (`think:false`, structured output, `keep_alive`): `src/director/ollama.ts`
+- Every eval call with its inputs and verdicts: `eval/out/gemma-results.json`, written by `npm run eval:gemma`
 
 ---
 
@@ -66,6 +123,7 @@ If Ollama isn't running, the game says so and plays with the **scripted Warden**
   - A guaranteed hint after 120 s idle.
   - Hint *text* is always canonical: the model chooses *when*, never *what*, so it can't give wrong hints.
   - Off-character, offensive or spoiler lines are replaced from an in-character fallback bank.
+- **Warden voice.** Lines are typed on screen and spoken aloud by the browser's built-in, offline speech synthesis, pitched down and slowed per tone. Synthesized vocal blips run underneath for texture. Speech is optional (V) and never blocks the game: every utterance has a timeout.
 - **Hiding latency.** Every click gets instant deterministic feedback. The model only steers the environment, which is naturally delayed in the fiction of a watcher reacting. While it's thinking, the Warden's eye dilates and very faint "data chatter" plays.
 
 ### Unexpected situations
@@ -114,9 +172,13 @@ Three connected screens (Cell → Archive → Machine Hall) with 5 Tier-1 puzzle
 4. **Honest Answers**: the Warden quizzes you about what you did, built from its log of you.
 5. **The Window** (hardest), with the signature set piece **"It learned your trick"**: you have used darkness all game, so the Warden forces the lights back on. You have to blind it to finish.
 
+Two optional Tier-2 puzzles add depth:
+- **The Vent** (P6): the interview token unscrews the cell vent. Behind it are Subject 13's journal page and a spare fuse, which opens an unplanned route through the finale.
+- **Your File** (P7): drawer 14 in the archive ("SUBJECT 14 — LIVE") locks on *your own last three moves*, and a ticker printer reveals them. Inside is the Warden's core key, which unlocks an **alternate "shut it down" ending**.
+
 It ends with a twist and a **"What the room learned about you"** dossier. The dossier shows your stats and archetype, three observations Gemma writes about your habits, and the Warden's decision record (made / accepted / amended / vetoed / fallback).
 
-All art is procedural Canvas 2D and all audio is synthesized with Web Audio. There are no asset files.
+All art is procedural Canvas 2D, rendered at the display's native resolution (devicePixelRatio-aware) so it stays sharp on any screen. All audio is synthesized with Web Audio. There are no asset files.
 
 ---
 
@@ -127,8 +189,11 @@ All numbers measured on a laptop RTX 4050 (6 GB) with `gemma4:e2b` via Ollama, `
 ### Rules engine: `npm run eval:rules`
 **56 / 56 pass (100%)**: 41 pipeline scenarios (permanent exit lock, hiding a required item, permanent hazards on required machines, malformed JSON, out-of-vocabulary actions, offensive lines, spoilers, stale decisions, cooldowns, budget, mercy, scare gates…) plus 15 unit checks.
 
-### Golden path: `npm run eval:golden`
-A headless bot plays the whole game start → escape and checks **solvability after every step**: PASS.
+### Golden path, Tier 2 and story: `npm run eval`
+`npm run eval` runs four suites: rules, golden path, Tier 2 and story. All pass.
+- **Golden path:** a headless bot plays the whole game start → escape and checks **solvability after every step**.
+- **Tier 2:** the P7 → shutdown alternate ending is played headlessly.
+- **Story:** chapters only advance, and there's always an objective.
 
 ### Failure demo: `npx tsx eval/failure-demo.ts hall`
 The real scheduler plus the bad-brain mock: **0 unsafe actions applied, room still solvable**.
@@ -158,7 +223,7 @@ The real scheduler plus the bad-brain mock: **0 unsafe actions applied, room sti
 - **Thinking mode:** with Ollama's default thinking on, Gemma 4 returned **empty content** because it spent its whole token budget thinking. `think:false` is required.
 - **Mode collapse:** the 2B model collapses onto one "safe" action (`adjust_tension` in 75% of calls). Removing infeasible actions from the schema and adding a one-line `SITUATION` summary cut this to about 30% and made hints appear when players are stuck.
 - **Vision depends on prompt layout:** inside a long prompt, vision was unreliable (about 50% on lit vs dark). Making the model write a `saw` field *first* fixed it in the browser build. The text snapshot stays the ground truth, and no rule depends on what the model saw.
-- **Rules can't force helpfulness:** the remaining 19% of "inappropriate" choices are harmless but unhelpful, such as raising tension for a stuck player. That's why there are model-independent safety nets (the guaranteed idle hint, and "tension can only go down while struggling").
+- **Rules can't force helpfulness:** the remaining ~22% of "inappropriate" choices are harmless but unhelpful, such as raising tension for a stuck player. That's why there are model-independent safety nets (the guaranteed idle hint, and "tension can only go down while struggling").
 
 ### Player archetypes: `npm run eval:archetypes` (add `-- --gemma` for the live model)
 Simulated cautious, reckless and idle players over 12 minutes each. The room behaves differently for each:
@@ -182,13 +247,14 @@ The same run with **live Gemma** as the Warden (`-- --gemma`, 240 real decisions
 ## Project layout
 
 ```
-src/world/     deterministic game: state, puzzles, dependency graph, golden-path script
+src/world/     deterministic game: state, puzzles, dependency graph, golden-path script, story data
 src/rules/     review pipeline, solvability, budget, mercy, tone, content filter
 src/director/  snapshot, prompt, schema, Ollama / mock / scripted directors, scheduler, feasibility
 src/gfx/       procedural Canvas renderer (lighting, silhouettes, the Eye, director view)
-src/audio/     Web Audio synthesis (beds, tension layers, SFX, Warden voice blips)
+src/audio/     Web Audio synthesis (beds, tension layers, SFX, voice blips) + speech.ts (Warden spoken voice)
+src/story/     prologue cinematic, wake-up, chapter cards, objective line, Subject 13 fragments
 src/ui/        DOM overlay (dialogue, inventory, journal, pads, dossier) + mind panel
-eval/          rules, golden path, failure demo, real-Gemma and archetype evals
+eval/          rules, golden path, tier 2, story, failure demo, real-Gemma and archetype evals
 docs/          design package (architecture, puzzles, Warden, sound, graphics, build plan)
 ```
 
