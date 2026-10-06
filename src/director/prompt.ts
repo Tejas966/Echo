@@ -17,6 +17,15 @@ Rules:
 - Do not repeat your last actions or lines. Vary your behaviour. Silence (do_nothing) is often best.
 - "line" is optional, max 120 characters, spoken aloud by you. Never reveal puzzle solutions in a line.
 - "reason" is one short sentence for the observers: why this action, now.
+How to choose (read SITUATION first):
+- stuck / struggling → reveal_hint (tier 1 first, higher if hints were already given) or a cold, helpful speak.
+- spamming → speak (mocking) or a mild flicker_lights.
+- hiding → speak ("I can see you"), play_sound, or flicker_lights.
+- rushing → speak (mocking) or a short lock_door (intensity 1).
+- breezing → pressure: spawn_hazard, blackout or flicker_lights (intensity 1-2).
+- exploring / productive → do_nothing, play_sound, or a short in-character speak.
+- blind → you cannot see: speak or play_sound only.
+- adjust_tension is rarely needed; prefer actions the subject can perceive.
 Actions: do_nothing, flicker_lights(screen), blackout(screen), lock_door(door), unlock_door(door),
 shift_object(object), spawn_hazard(slot), play_sound(cue), reveal_hint(puzzle; intensity = hint tier), speak(tone),
 adjust_tension(up|down), jump_scare(scare). intensity: 1 mild, 2 medium, 3 strong.
@@ -28,6 +37,10 @@ const shot = (snap: string, out: object) => [
 ];
 
 export const FEW_SHOTS = [
+  ...shot(
+    'SCREEN cell | ACT 1 | t=1:40 | TENSION 25/100 | MERCY 0 | WARDEN_TONE mocking | CAMERA online\nSITUATION: spamming\nPLAYER zone=right idle=0s clicks_last10s=15\nPUZZLE current=p1 time_on=1:40 fails=0\nLAST_EVENTS: -1s click cell_door | -1s click cell_door | -2s click cell_door\nVALID_TARGETS: speak=[polite,mocking,rattled,cold] flicker_lights=[cell] play_sound=[drip]\nDecide your next action.',
+    { saw: 'subject pressed against the door', action: 'speak', target: 'mocking', intensity: 1, line: 'Hitting it harder will not open it, Subject 14.', reason: 'Subject is spamming the door; mock the brute force.', confidence: 0.85 },
+  ),
   ...shot(
     'SCREEN cell | ACT 1 | t=3:10 | TENSION 20/100 | MERCY 0 | WARDEN_TONE mocking | CAMERA online\nPLAYER zone=center idle=72s clicks_last10s=0\nPUZZLE current=p1 time_on=3:10 fails=1 hints_given=0\nLAST_EVENTS: -80s click mirror | -75s click sink\nVALID_TARGETS: reveal_hint=[p1] speak=[polite,mocking,rattled,cold] play_sound=[drip,footsteps_far]\nDecide your next action.',
     { saw: 'bright white cell, subject standing still', action: 'reveal_hint', target: 'p1', intensity: 1, line: 'Still thinking, Subject 14? Take your time. I have plenty.', reason: 'Subject idle 72s on the first test; nudge.', confidence: 0.8 },
@@ -45,11 +58,12 @@ export const FEW_SHOTS = [
 /** Per-call schema: action enum fixed; target enum = every currently valid id (rules re-check per action). */
 export function buildSchema(vt: ValidTargets) {
   const targets = [...new Set(Object.values(vt).flat())];
+  const actions = ACTIONS.filter((a) => vt[a]?.length);
   return {
     type: 'object',
     properties: {
       saw: { type: 'string', maxLength: 80 },
-      action: { enum: [...ACTIONS] },
+      action: { enum: actions.length ? actions : ['do_nothing'] },
       target: targets.length ? { enum: targets } : { type: 'string' },
       intensity: { enum: [1, 2, 3] },
       line: { type: 'string', maxLength: 120 },

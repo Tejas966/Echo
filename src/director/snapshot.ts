@@ -1,5 +1,5 @@
 // Builds the compact text snapshot the model sees (docs/01 §7). Pure.
-import type { GameState, LogEvent, Snapshot } from '../types';
+import type { GameState, LogEvent, Snapshot, ValidTargets } from '../types';
 import type { Habits } from '../profile/habits';
 import { validTargets } from './vocabulary';
 
@@ -9,16 +9,25 @@ function eventLine(e: LogEvent, now: number) {
   return `-${Math.round((now - e.t) / 1000)}s ${e.kind} ${e.a}${e.b ? ' ' + e.b : ''}`;
 }
 
-export function buildSnapshot(s: GameState, log: LogEvent[], h: Habits, image?: string, urgent?: string): Snapshot {
-  const vt = validTargets(s);
+export function buildSnapshot(s: GameState, log: LogEvent[], h: Habits, image?: string, urgent?: string, filter?: (vt: ValidTargets) => ValidTargets): Snapshot {
+  const vt = filter ? filter(validTargets(s)) : validTargets(s);
   const recent = log.filter((e) => e.kind !== 'warden').slice(-10).map((e) => eventLine(e, s.t)).join(' | ') || 'none';
   const yours = s.warden.lastActions.slice(-3)
     .map((a) => `${mmss(a.t)} ${a.action} ${a.target} (${a.status}${a.stage ? ': ' + a.stage : ''})`).join(' | ') || 'none';
   const said = s.warden.lineHistory.slice(-3).map((l) => `"${l}"`).join(' ') || 'none';
   const timeOn = s.t - s.puzzle.startedAt;
+  const sit: string[] = [];
+  if (s.warden.blind) sit.push('blind');
+  if (s.mercy.level >= 1 || s.puzzle.fails >= 3 || h.idleS >= 60 || timeOn > 8 * 60000) sit.push('stuck / struggling');
+  if (h.spam !== 'low') sit.push('spamming');
+  if (h.hiding) sit.push('hiding');
+  if (h.rushing) sit.push('rushing');
+  if (h.breezing) sit.push('breezing');
+  if (!sit.length) sit.push(h.idleS < 15 ? 'exploring / productive' : 'quiet');
   const lines = [
     `SCREEN ${s.screen} | ACT ${s.act === 4 ? 'breather' : s.act} | t=${mmss(s.t)} | TENSION ${Math.round(s.tension)}/100 | MERCY ${s.mercy.level} | WARDEN_TONE ${s.warden.tone} | CAMERA ${s.warden.blind ? 'BLIND (you cannot see; the image is black)' : 'online'}`,
     `LIGHTS ${s.screen}=${s.lights[s.screen].level < 0.3 ? 'dark' : 'lit'} | DOORS ${Object.entries(s.doors).map(([k, d]) => `${k}:${d.wardenLock ? 'warden-locked' : d.open ? 'open' : 'closed'}`).join(' ')}`,
+    `SITUATION: ${sit.join(', ')}`,
     `PLAYER zone=${s.player.x < 300 ? 'left' : s.player.x > 980 ? 'right' : 'center'} idle=${h.idleS}s clicks_last10s=${h.clicksLast10s} holding=${s.player.holding ?? 'nothing'} inventory=[${s.inventory.join(',')}]`,
     `PUZZLE current=${s.puzzle.current} time_on=${mmss(timeOn)} fails=${s.puzzle.fails} hints_given=${s.puzzle.hints} solved=[${Object.keys(s.stats.solvedAt).join(',')}]`,
     `HABITS spam=${h.spam} hiding=${h.hiding ? 'yes' : 'no'} rushing=${h.rushing ? 'yes' : 'no'} hint_reliance=${h.hintReliance} dark_user=${h.darkUser ? 'yes' : 'no'} breezing=${h.breezing ? 'yes' : 'no'}`,

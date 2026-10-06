@@ -5,7 +5,7 @@ import type { Ctx } from './util';
 import { clamp, easeOut, glow, hash, hexA, lerp, makeCanvas, TONE_COLOR } from './util';
 import { drawFigure, drawItemIcon } from './figure';
 import type { Anim, Light } from './scenes';
-import { drawDynamic, drawEmissive, drawExitForeground, drawHover, drawLocks, drawStatic, fixtureTint, lightsFor } from './scenes';
+import { drawDynamic, drawEmissive, drawExitForeground, drawForeground, drawHover, drawLocks, drawShadow, drawStatic, fixtureTint, lightsFor } from './scenes';
 import { drawBeam, drawSlide } from './slides';
 import { flickerFactor, grainTile, heartbeat, Particles, softSprite, vignette } from './fx';
 
@@ -31,7 +31,6 @@ export function createGfx(): GfxAPI {
   const darkCanvases = new Map<string, HTMLCanvasElement>();
   let scratch: HTMLCanvasElement | null = null;
   const particles = new Particles();
-  (globalThis as unknown as { __gfxParticles?: Particles }).__gfxParticles = particles;
 
   // ---------- animation state ----------
   const anim: Anim = { door: { cell_door: 0, shutter: 0, lift: 0 }, cage: 0, lever: 0 };
@@ -142,12 +141,14 @@ export function createGfx(): GfxAPI {
 
     // player
     const pdraw = playerParams(s, f, now);
+    drawShadow(ctx, s.player.x, FLOOR_Y + standY + 2, 44, s.screen === 'cell' ? 0.35 : 0.5);
     const hand = drawFigure(ctx, s.player.x, FLOOR_Y + standY, 1, {
       ...pdraw, color: s.screen === 'cell' ? '#0d0f12' : '#05070a',
       outline: dir ? '#ffffff' : undefined, outlineW: 6,
     });
 
     if (s.screen === 'exit') drawExitForeground(ctx);
+    else drawForeground(ctx, s.screen, now);
 
     // ---- darkness ----
     const darkA = clamp(0.08 + (1 - eff) * 0.9, 0, 0.965);
@@ -226,7 +227,7 @@ export function createGfx(): GfxAPI {
     anim.lever = lerp(anim.lever, s.flags.lift_powered ? 1 : 0, Math.min(1, dt * 8));
     walkBlend = lerp(walkBlend, f.walking ? 1 : 0, Math.min(1, dt * 10));
     if (f.walking) walkPhase += dt * 8.5;
-    standY = lerp(standY, s.player.standingOn === 'cot' ? -70 : 0, Math.min(1, dt * 9));
+    standY = lerp(standY, s.player.standingOn === 'cot' ? -92 : 0, Math.min(1, dt * 9));
     const reaching = f.reachingAt != null || (lastReach != null && now < lastReach.until);
     reachBlend = lerp(reachBlend, reaching ? 1 : 0, Math.min(1, dt * 14));
 
@@ -276,10 +277,10 @@ export function createGfx(): GfxAPI {
     const e = EYE_POS[s.screen];
     const tone: Tone = s.screen === 'exit' ? 'cold' : s.warden.tone;
     const blind = s.warden.blind && s.screen !== 'exit';
-    let col = blind ? '#6a6a6a' : eyeColor(tone);
+    const col = blind ? '#6a6a6a' : eyeColor(tone);
     let inten = 1;
     if (!blind && tone === 'rattled') {
-      inten = f.reduceFlashing ? 0.75 + 0.25 * Math.sin(now / 300) : 0.45 + 0.55 * hash(Math.floor(now / 110));
+      inten = f.reduceFlashing ? 0.75 + 0.25 * Math.sin(now / 300) : 0.45 + 0.55 * hash(Math.floor(now / 180));
     }
     // housing
     ctx.fillStyle = '#16191e';
@@ -323,7 +324,6 @@ export function createGfx(): GfxAPI {
       ctx.fillStyle = f.thinking ? hexA('#ff3b2f', 0.6 + 0.4 * Math.sin(now / 90)) : 'rgba(255,60,50,0.5)';
       ctx.beginPath(); ctx.arc(e.x + 18, e.y - 18, 2.5, 0, Math.PI * 2); ctx.fill();
     }
-    col = col; // keep
   }
 
   function atmosphere(ctx: Ctx, screen: ScreenId, now: number, k: number) {
@@ -562,9 +562,6 @@ export function createGfx(): GfxAPI {
   return {
     render,
     fx(e: FxEvent) {
-      if (e.kind === 'scare' || e.kind === 'flash') {
-        // honour reduce-flashing seen on the last frame (applied at draw time)
-      }
       pendingFx.push(e);
       if (pendingFx.length > 64) pendingFx.shift();
       void lastT;

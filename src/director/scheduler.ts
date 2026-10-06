@@ -7,6 +7,7 @@ import { buildSnapshot, URGENT_TEXT } from './snapshot';
 import { OllamaDirector } from './ollama';
 import { MockDirector, BAD_BRAIN, DEMO_GOOD } from './mock';
 import { ScriptedDirector } from './scripted';
+import { feasibleTargets } from './feasible';
 
 export const MIN_GAP_MS = 2500;
 export const TIMEOUT_MS = 6000;
@@ -105,6 +106,7 @@ export class Scheduler {
     if (!this.inFlight && (now - this.lastReturn >= MIN_GAP_MS || (this.urgent && now - this.lastReturn >= 800))) {
       void this.cycle();
     }
+    this.safetyNet();
     this.execute(now);
   }
 
@@ -124,7 +126,8 @@ export class Scheduler {
     const mode = this.mode;
     const s0 = this.d.getState();
     const image = this.sendImage && dir.kind !== 'scripted' ? this.d.capture() : undefined;
-    const snap = buildSnapshot(s0, this.d.getLog(), this.d.getHabits(), image, urgent ? URGENT_TEXT[urgent] ?? urgent : undefined);
+    const snap = buildSnapshot(s0, this.d.getLog(), this.d.getHabits(), image, urgent ? URGENT_TEXT[urgent] ?? urgent : undefined,
+      dir.kind === 'ollama' ? (vt) => feasibleTargets(s0, vt, this.ctx) : undefined);
     const attempts: MindRecord['attempts'] = [];
     let verdict: Verdict | null = null;
     let source: DecisionSource = dir.kind;
@@ -194,6 +197,22 @@ export class Scheduler {
       const d = (v.final ?? v.proposed)!;
       s.warden.lastActions = [...s.warden.lastActions, { t: s.t, action: d.action, target: d.target, status: v.status, stage: v.stage }].slice(-5);
     }
+  }
+
+  /** Deterministic safety net (docs/03 §2): if the subject is idle 120 s and no hint was given in the last 90 s,
+   *  push a tier-appropriate hint through the same rules pipeline, regardless of what the model is doing. */
+  safetyNet() {
+    const s = this.d.getState(); const h = this.d.getHabits();
+    const lastHint = this.ctx.cooldowns['reveal_hint'] ?? -1e9;
+    if (h.idleS < 120 || s.t - lastHint < 90000 || s.ended) return;
+    const tier = Math.min(3, s.puzzle.hints + 1) as 1 | 2 | 3;
+    const d: Decision = { action: 'reveal_hint', target: s.puzzle.current, intensity: tier, reason: `Safety net: subject idle ${h.idleS}s with no recent hint.` };
+    const snap = buildSnapshot(s, this.d.getLog(), h);
+    const v = review({ raw: d, source: 'scripted' }, s, this.reviewCtx(snap));
+    const rec: MindRecord = { id: ++this.recId, at: s.t, mode: 'scripted', degraded: this.degraded, snapshot: snap, attempts: [], verdict: { ...v, detail: `SAFETY NET (deterministic): ${v.detail ?? 'idle 120s → hint'}` } };
+    this.d.onRecord(rec);
+    if (v.final) { this.queue.unshift({ decision: v.final, source: 'scripted', snapT: s.t, screen: s.screen, rec }); this.lastExec = 0; }
+    else this.ctx.cooldowns['reveal_hint'] = s.t; // avoid re-trying every frame
   }
 
   /** Pop at most one queued decision every EXEC_GAP_MS; the caller applies it. */

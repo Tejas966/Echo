@@ -11,8 +11,8 @@ export function drawBeam(ctx: Ctx, t: number, flick: number) {
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   const g = ctx.createLinearGradient(LENS.x, LENS.y, R.x + R.w / 2, R.y + R.h / 2);
-  g.addColorStop(0, `rgba(255,190,110,${0.32 * flick})`);
-  g.addColorStop(1, `rgba(255,180,90,${0.05 * flick})`);
+  g.addColorStop(0, `rgba(255,175,80,${0.5 * flick})`);
+  g.addColorStop(1, `rgba(255,160,60,${0.12 * flick})`);
   ctx.fillStyle = g;
   ctx.beginPath();
   ctx.moveTo(LENS.x - 5, LENS.y);

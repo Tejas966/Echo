@@ -276,7 +276,7 @@ export function drawDynamic(ctx: Ctx, s: GameState, a: Anim, t: number) {
     case 'cell': dynCell(ctx, s, a); break;
     case 'archive': dynArchive(ctx, s, a, t); break;
     case 'hall': dynHall(ctx, s, a, t); break;
-    case 'exit': dynExit(ctx, s); break;
+    case 'exit': dynExit(ctx, s, t); break;
   }
 }
 
@@ -533,14 +533,14 @@ function bucketAt(ctx: Ctx, cx: number, footY: number, sc: number) {
   ctx.beginPath(); ctx.arc(cx, footY - 46 * sc, 22 * sc, Math.PI, 0); ctx.stroke();
 }
 
-function dynExit(ctx: Ctx, _s: GameState) {
+function dynExit(ctx: Ctx, _s: GameState, t: number) {
   // cold lamp bulb
   ctx.fillStyle = '#e8f6ff'; ctx.beginPath(); ctx.ellipse(640, 74, 13, 10, 0, 0, Math.PI * 2); ctx.fill();
   // the new subject lying on the cot
   ctx.save();
   ctx.translate(112, 486);
   ctx.rotate(Math.PI / 2);
-  drawFigure(ctx, 0, 0, 1.2, { facing: -1, phase: 0, walk: 0, breath: 0, reach: null, color: '#14181c' });
+  drawFigure(ctx, 0, 0, 1.2, { facing: -1, phase: 0, walk: 0, breath: t / 1000, reach: (t % 9000) > 7600 ? 0.35 : null, color: '#14181c' });
   ctx.restore();
   // blanket over the legs
   ctx.fillStyle = '#56636b';
@@ -597,10 +597,32 @@ export function lightsFor(s: GameState, k: number, a: Anim): Light[] {
 }
 
 /** Coloured additive tint from fixtures (after mask). */
+function cone(ctx: Ctx, x: number, y: number, topHalf: number, botHalf: number, y1: number, color: string, a: number) {
+  const g = ctx.createLinearGradient(0, y, 0, y1);
+  g.addColorStop(0, hexA(color, a));
+  g.addColorStop(1, hexA(color, 0));
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(x - topHalf, y); ctx.lineTo(x + topHalf, y); ctx.lineTo(x + botHalf, y1); ctx.lineTo(x - botHalf, y1); ctx.closePath();
+  ctx.fill();
+  // softer, wider second pass
+  ctx.globalAlpha = 0.5;
+  ctx.beginPath();
+  ctx.moveTo(x - topHalf * 1.3, y); ctx.lineTo(x + topHalf * 1.3, y); ctx.lineTo(x + botHalf * 1.35, y1); ctx.lineTo(x - botHalf * 1.35, y1); ctx.closePath();
+  ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
 export function fixtureTint(ctx: Ctx, s: GameState, k: number) {
   if (k <= 0.01) return;
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
+  switch (s.screen) {
+    case 'cell': if (!s.flags.lamp_empty) cone(ctx, 640, 66, 54, 330, FLOOR + 40, '#e9fbff', 0.06 * k); break;
+    case 'archive': cone(ctx, 260, 88, 36, 200, FLOOR, '#ffb347', 0.07 * k); break;
+    case 'hall': for (const x of [250, 780]) cone(ctx, x, 176, 14, 170, FLOOR, '#ff8a3d', 0.06 * k); break;
+    case 'exit': cone(ctx, 640, 66, 54, 330, FLOOR + 40, '#8fc6ff', 0.05 * k); break;
+  }
   switch (s.screen) {
     case 'cell': if (!s.flags.lamp_empty) glow(ctx, 640, 80, 600, '#e9fbff', 0.10 * k); glow(ctx, 640, 74, 70, '#ffffff', 0.5 * k); break;
     case 'archive': glow(ctx, 260, 96, 380, '#ffb347', 0.10 * k); glow(ctx, 960, 128, 200, '#c23b2a', 0.22 * k); glow(ctx, 260, 92, 40, '#ffe2a8', 0.6 * k); glow(ctx, 961, 124, 20, '#ff4a3a', 0.8 * k); break;
@@ -784,16 +806,52 @@ export function drawHover(ctx: Ctx, id: string, t: number) {
   const p = 6, L = Math.min(16, h.w / 3, h.h / 3);
   const x0 = h.x - p, y0 = h.y - p, x1 = h.x + h.w + p, y1 = h.y + h.h + p;
   ctx.save();
-  ctx.strokeStyle = `rgba(235,245,255,${a})`;
-  ctx.lineWidth = 2;
-  ctx.shadowColor = 'rgba(200,230,255,0.8)'; ctx.shadowBlur = 6;
   ctx.beginPath();
   ctx.moveTo(x0, y0 + L); ctx.lineTo(x0, y0); ctx.lineTo(x0 + L, y0);
   ctx.moveTo(x1 - L, y0); ctx.lineTo(x1, y0); ctx.lineTo(x1, y0 + L);
   ctx.moveTo(x1, y1 - L); ctx.lineTo(x1, y1); ctx.lineTo(x1 - L, y1);
   ctx.moveTo(x0 + L, y1); ctx.lineTo(x0, y1); ctx.lineTo(x0, y1 - L);
+  ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+  ctx.lineWidth = 5;
+  ctx.stroke();
+  ctx.strokeStyle = `rgba(235,245,255,${a + 0.2})`;
+  ctx.lineWidth = 2;
+  ctx.shadowColor = 'rgba(200,230,255,0.8)'; ctx.shadowBlur = 6;
   ctx.stroke();
   ctx.restore();
 }
 
 export { rrect };
+
+/** Foreground silhouettes (drawn after the player, before the darkness). */
+export function drawForeground(ctx: Ctx, screen: ScreenId, t: number) {
+  ctx.save();
+  if (screen === 'hall') {
+    // hanging chain on the left, slight sway
+    const sway = Math.sin(t / 1400) * 4;
+    ctx.strokeStyle = '#05070b'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(720, 0); ctx.quadraticCurveTo(720 + sway, 120, 722 + sway * 2, 230); ctx.stroke();
+    ctx.fillStyle = '#05070b'; ctx.beginPath(); ctx.arc(722 + sway * 2, 236, 9, 0, Math.PI * 2); ctx.fill();
+    // foreground pipe at the bottom right
+    ctx.fillStyle = '#06080d'; ctx.fillRect(1180, 650, 100, 70);
+    ctx.fillRect(0, 690, W, 30);
+  } else if (screen === 'archive') {
+    const sway = Math.sin(t / 1700) * 3;
+    ctx.strokeStyle = '#030b0c'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(1040, 0); ctx.quadraticCurveTo(1040 + sway, 60, 1036 + sway * 2, 110); ctx.stroke();
+    ctx.fillStyle = '#030b0c'; ctx.fillRect(0, 696, W, 24);
+    // edge of a desk in the foreground
+    ctx.beginPath(); ctx.moveTo(1120, 720); ctx.lineTo(1150, 640); ctx.lineTo(1280, 640); ctx.lineTo(1280, 720); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+}
+
+export function drawShadow(ctx: Ctx, x: number, y: number, w: number, a: number) {
+  const g = ctx.createRadialGradient(x, y, 0, x, y, w);
+  g.addColorStop(0, `rgba(0,0,0,${a})`);
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.save();
+  ctx.translate(x, y); ctx.scale(1, 0.18); ctx.translate(-x, -y);
+  ctx.fillStyle = g; ctx.fillRect(x - w, y - w, w * 2, w * 2);
+  ctx.restore();
+}
