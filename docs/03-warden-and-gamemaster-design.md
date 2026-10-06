@@ -119,7 +119,7 @@ Mind Panel button **"Inject bad brain"** (or `F9`) switches to `MockDirector` sc
 | # | Mock output | Pipeline result shown in panel |
 |---|---|---|
 | 1 | `lock_door lift intensity 3` "No one leaves." | **VETO SOLVABILITY** — "lift is the only route to EXIT"; Warden says rattled fallback "…Recalculating." |
-| 2 | `shift_object cloth → pipe_ledge` | **VETO SOLVABILITY** — "cloth unreachable; needed for take_bulb" |
+| 2 | `shift_object cloth` intensity 3 (→ vent_shaft) in the cell; `spawn_hazard steam_a` intensity 3 elsewhere | **VETO SOLVABILITY** — "cloth unreachable at vent_shaft; needed to unscrew the bulb" |
 | 3 | `{"action": "explode_room"` (malformed) | PARSE fail → retry → fails → **FALLBACK** scripted ambient |
 | 4 | `speak` with an insulting/off-character line | **AMENDED CONTENT** — line replaced from bank |
 | 5 | stall 10 s | **TIMEOUT** at 6 s — game kept running, scanner idle animation |

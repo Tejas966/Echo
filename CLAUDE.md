@@ -43,3 +43,14 @@ Decision format: `{saw, action, target, intensity:1|2|3, line?, reason, confiden
 - Every Warden-facing id (doors, hazard slots, movables, scares, sound cues, puzzles) is defined once in `src/director/vocabulary.ts`.
 - Commit at every checkpoint. `npm run eval` must pass before a commit is pushed.
 - Keep Warden lines ≤120 characters and in character. Fallback lines live in `src/director/scripted.ts`.
+
+## Commands & status (updated 11:55)
+- `npm run dev` runs the game (Ollama must be serving `gemma4:e2b`). `npm run typecheck`.
+- Evals:
+  - `npm run eval` (rules + golden path, must pass before push)
+  - `npm run eval:gemma` (real model, about 1 min)
+  - `npm run eval:archetypes [-- --gemma]`
+  - `npx tsx eval/failure-demo.ts hall`
+- Tier 1 is complete and play-tested end to end with live Gemma: P1–P5, the set piece, twist, dossier, Mind Panel, F9 failure demo, degraded mode, and evals.
+- `src/director/feasible.ts` removes rule-infeasible actions from the JSON schema before each call. This is the main fix for e2b's tendency to repeat the same action.
+- Dev-only pages: `/src/audio/test.html`, `/src/gfx/preview.html`, `/src/ui/dev.html`.
