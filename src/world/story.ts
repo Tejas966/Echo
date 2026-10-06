@@ -31,12 +31,14 @@ export function objectiveFor(s: GameState): string {
   if (!solved('p1')) {
     if (!f.lamp_empty) return f.got_cloth ? 'The light is relentless. Find a way to make it stop.' : 'Search the cell. Something here must help.';
     if (!f.knows_shapes) return 'In the dark, look closely at the walls.';
+    if (!f.knows_mirror) return 'Some marks were gouged out. Thirteen hid them somewhere the Warden never looks.';
     return 'Open the cell door.';
   }
   if (!solved('p2')) return s.screen === 'cell' ? 'Leave the cell.' : 'Restore power to the shutter.';
   if (!solved('p3')) {
     if (!f.projector_bulb) return 'The projector needs light. You have some.';
     if (!f.visited_hall) return 'Go through the shutter. Find what needs pressure.';
+    if (!f.knows_yellow && f.slides_seen) return 'One gauge on the slides is smeared. Find the missing reading.';
     return 'Set the manifold valves. Trust the records — mostly.';
   }
   if (!solved('p4')) return 'Answer the intercom.';

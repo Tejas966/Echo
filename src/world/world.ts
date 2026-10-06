@@ -184,11 +184,27 @@ export function interact(s: GameState, id: string, holding: ItemId | null): Outc
     case 'scratches':
       s.flags.knows_shapes = true; s.flags.knows_blue = true;
       o.ev('look', 'scratches').s13('BLUE LIES. BLUE IS 2.');
-      o.journal(`Wall scratches (left→right): ${P1_SCRATCHES.map((x) => `${SHAPE_CHAR[x.shape]} with ${x.tally} tally mark${x.tally > 1 ? 's' : ''}`).join(', ')}.`);
+      o.journal(`Wall scratches (left→right): ${P1_SCRATCHES.map((x) => x.hidden ? `${SHAPE_CHAR[x.shape]} (marks gouged out)` : `${SHAPE_CHAR[x.shape]} with ${x.tally} tally mark${x.tally > 1 ? 's' : ''}`).join(', ')}.`);
+      if (!s.flags.knows_mirror) o.say('Two of the tally marks have been gouged out. Deliberately. As if hidden from something that watches the walls.');
       o.journal('Scratched under them: "BLUE LIES. BLUE IS 2." — Subject 13');
       bump(s); break;
-    case 'mirror': o.say('Fogged glass. Someone has written in the condensation: LOOK CLOSER.').warden('Nothing behind it. I just enjoy watching you look.', 'mocking'); break;
-    case 'sink': o.say('Rust-coloured water drips from the tap. Nothing else.').sfx('drip'); break;
+    case 'mirror':
+      if (s.lights.cell.level < 0.3) { o.say('Too dark to see anything in the mirror.'); break; }
+      if (s.flags.mirror_steamed) {
+        s.flags.knows_mirror = true;
+        o.ev('look', 'mirror').say('In the steam, finger-writing appears where someone breathed on the glass long ago: ✚ with one mark. ▲ with two.');
+        o.journal('Mirror (in steam): ✚ with 1 tally mark, ▲ with 2 tally marks.');
+        o.s13('It reads the walls. It never reads the mirror.');
+        bump(s);
+      } else o.say('A dry mirror. Someone once wrote LOOK CLOSER in old soap streaks.').warden('Nothing behind it. I just enjoy watching you look.', 'mocking');
+      break;
+    case 'sink':
+      if (!s.flags.mirror_steamed) {
+        s.flags.mirror_steamed = true;
+        o.ev('use', 'sink').sfx('steam').say('You turn the hot tap. Scalding water hisses into the basin and steam climbs the mirror.');
+        bump(s);
+      } else o.say('The hot tap still hisses. The mirror stays fogged.').sfx('drip');
+      break;
     case 'vent':
       if (s.flags.p6_vent_open) { o.say('An empty vent shaft.'); break; }
       if (holding === 'token') {
@@ -206,7 +222,15 @@ export function interact(s: GameState, id: string, holding: ItemId | null): Outc
       o.warden(s.warden.blind ? '...' : 'Yes, Subject 14. I am watching. I am always watching.'); break;
 
     // ----- ARCHIVE -----
-    case 'cabinets': o.say('Row upon row of subject files.'); break;
+    case 'cabinets':
+      if (!s.flags.knows_yellow) {
+        s.flags.knows_yellow = true;
+        o.ev('look', 'file12').sfx('scrape').say('You pull drawer 12. One file. SUBJECT 12 — MAINTENANCE DUTY. A note clipped inside:');
+        o.s13('Yellow valve held at FOUR. Always four. If it says otherwise, it is lying to you.');
+        o.journal('Subject 12 file: "Yellow valve held at FOUR. Always four."');
+        bump(s);
+      } else o.say('Files for subjects 1 to 13. Drawer 12 hangs open. Drawer 14 is locked: SUBJECT 14 — LIVE.');
+      break;
     case 'printer': {
       const lv = (s.stats.lastVerbs ?? ['WALK', 'LOOK', 'LOOK']);
       const verbs = lv.length === 3 ? lv : ['WALK', 'LOOK', 'LOOK'];
@@ -306,8 +330,10 @@ function showSlide(s: GameState, o: Out) {
     return;
   }
   const sl = P3_SLIDES[s.slide - 1];
-  o.say(`Slide ${s.slide}: ${sl.subject} beside the ${sl.color.toUpperCase()} valve. Gauge at ${sl.shows}. Stamped ${sl.stamp}.`);
-  o.journal(`Slide ${s.slide}: ${sl.subject} — ${sl.color.toUpperCase()} valve at ${sl.shows} (${sl.stamp}).`);
+  const reading = sl.smeared ? 'gauge smeared with a greasy thumbprint — unreadable' : `gauge at ${sl.shows}`;
+  o.say(`Slide ${s.slide}: ${sl.subject} beside the ${sl.color.toUpperCase()} valve. ${reading[0].toUpperCase() + reading.slice(1)}. Stamped ${sl.stamp}.`);
+  o.journal(`Slide ${s.slide}: ${sl.subject} — ${sl.color.toUpperCase()} valve, ${reading} (${sl.stamp}).`);
+  if (sl.smeared && !s.flags.knows_yellow) o.say('Subject 12 worked here. Their file might still be in the cabinets.');
   if (sl.forged && !s.flags.saw_forged) { s.flags.saw_forged = true; o.say('The silhouette is holding a folded blanket. It looks exactly like you.'); }
 }
 

@@ -8,21 +8,21 @@ export const FLOOR_Y = 600;
 
 // ---------- puzzle constants ----------
 /** P1: wall scratches, left-to-right, each with a tally count. Answer = order by tally. */
-export const P1_SCRATCHES: { shape: Shape; tally: number }[] = [
+export const P1_SCRATCHES: { shape: Shape; tally: number; hidden?: boolean }[] = [
   { shape: 'circle', tally: 3 },
-  { shape: 'cross', tally: 1 },
+  { shape: 'cross', tally: 1, hidden: true },   // scratched out on the wall — written on the steamed mirror instead
   { shape: 'square', tally: 4 },
-  { shape: 'tri', tally: 2 },
+  { shape: 'tri', tally: 2, hidden: true },
 ];
 export const P1_CODE: Shape[] = [...P1_SCRATCHES].sort((a, b) => a.tally - b.tally).map((s) => s.shape); // cross, tri, circle, square
 
 /** P3: true valve settings. Slides show red/green/yellow truthfully; the blue slide is forged and shows 4. */
 export const P3_TRUE: Record<ValveColor, 1 | 2 | 3 | 4> = { red: 3, green: 1, blue: 2, yellow: 4 };
-export const P3_SLIDES: { color: ValveColor; shows: 1 | 2 | 3 | 4; subject: string; stamp: string; forged: boolean }[] = [
+export const P3_SLIDES: { color: ValveColor; shows: 1 | 2 | 3 | 4; subject: string; stamp: string; forged: boolean; smeared?: boolean }[] = [
   { color: 'red', shows: 3, subject: 'SUBJECT 09', stamp: '1997-03-02', forged: false },
   { color: 'green', shows: 1, subject: 'SUBJECT 11', stamp: '2003-11-19', forged: false },
   { color: 'blue', shows: 4, subject: 'SUBJECT 14', stamp: 'TOMORROW', forged: true },
-  { color: 'yellow', shows: 4, subject: 'SUBJECT 12', stamp: '2009-06-30', forged: false },
+  { color: 'yellow', shows: 4, subject: 'SUBJECT 12', stamp: '2009-06-30', forged: false, smeared: true },
 ];
 /** Slide 5 (appears after lift_powered): Subject 13 writing on the observation window. */
 export const SLIDE_COUNT_BEFORE = 4;

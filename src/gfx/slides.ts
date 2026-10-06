@@ -60,6 +60,15 @@ export function drawSlide(ctx: Ctx, slide: number, t: number, flick: number) {
     }
     // valve + gauge
     drawGauge(ctx, R.x + 230, R.y + 70, 26, d.shows, '#efe2c2', ink);
+    if (d.smeared) {
+      // a thumbprint of grease over the gauge face — the reading is gone
+      ctx.save();
+      ctx.fillStyle = 'rgba(70,52,30,0.85)';
+      ctx.beginPath(); ctx.ellipse(R.x + 232, R.y + 68, 24, 20, 0.4, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(40,28,14,0.6)'; ctx.lineWidth = 1.2;
+      for (let k = 1; k < 5; k++) { ctx.beginPath(); ctx.ellipse(R.x + 232, R.y + 68, 4 * k, 3.4 * k, 0.4, 0, Math.PI * 2); ctx.stroke(); }
+      ctx.restore();
+    }
     ctx.strokeStyle = ink; ctx.lineWidth = 6;
     ctx.beginPath(); ctx.moveTo(R.x + 230, R.y + 98); ctx.lineTo(R.x + 230, R.y + 122); ctx.stroke();
     drawValveWheel(ctx, R.x + 230, R.y + 140, 30, VALVE_COLOR[d.color], 0.3);

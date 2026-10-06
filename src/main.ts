@@ -13,6 +13,7 @@ import { computeHabits, archetype, dominantHabit, fuseChoice, buildStats, templa
 import { Scheduler, type Mode } from './director/scheduler';
 import { computeTone, tickBudget, updateMercy, onPuzzleSolved, filterLine, applyTensionDelta } from './rules';
 import { createStory } from './story';
+import { WardenVoice } from './audio/speech';
 import { chapterFor, objectiveFor, FRAGMENTS, FRAGMENT_FOR, CLIFFHANGER } from './world/story';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -25,6 +26,8 @@ const gfx = createGfx();
 const audio = createAudio();
 const ui = createUI(document.getElementById('ui-root')!);
 const story = createStory(document.getElementById('stage')!, audio);
+const voice = new WardenVoice();
+if (new URLSearchParams(location.search).has('novoice')) voice.enabled = false;
 
 // ---------- crisp rendering: canvas backing store = displayed size × devicePixelRatio ----------
 function fitCanvas() {
@@ -94,7 +97,14 @@ function speak(o: Outcome, ambient = false) {
     if (ambient && pendingLines >= 1) continue;
     if (line.speaker === 'warden') state.warden.lineHistory = [...state.warden.lineHistory, line.text].slice(-6);
     pendingLines++;
-    sayChain = sayChain.then(() => ui.say(line, line.speaker === 'warden' ? () => audio.blip(line.tone ?? state.warden.tone) : () => audio.sfx('typewriter', { volume: 0.25 }))).finally(() => { pendingLines--; });
+    sayChain = sayChain.then(() => {
+      if (line.speaker !== 'warden') return ui.say(line, () => audio.sfx('typewriter', { volume: 0.25 }));
+      const tone = line.tone ?? state.warden.tone;
+      let n = 0;
+      // with the spoken voice on, the synth blips thin out to a texture under the speech
+      const blip = () => { if (!voice.enabled || ++n % 3 === 0) audio.blip(tone); };
+      return Promise.all([ui.say(line, blip), voice.speak(line.text, tone)]).then(() => {});
+    }).finally(() => { pendingLines--; });
   }
 }
 
@@ -208,7 +218,8 @@ function reach(x: number) { frame.reachingAt = x; reachUntil = performance.now()
 
 window.addEventListener('keydown', (ev) => {
   if (ev.key === 'Tab') { ev.preventDefault(); mind.toggle(); setTimeout(() => window.dispatchEvent(new Event('resize')), 300); }
-  else if (ev.key === 'm' || ev.key === 'M') { muted = !muted; audio.setMuted(muted); ui.toast(muted ? 'Muted' : 'Sound on'); }
+  else if (ev.key === 'm' || ev.key === 'M') { muted = !muted; audio.setMuted(muted); voice.setVolume(muted ? 0 : 0.9); if (muted) voice.cancel(); ui.toast(muted ? 'Muted' : 'Sound on'); }
+  else if (ev.key === 'v' || ev.key === 'V') { voice.enabled = !voice.enabled; if (!voice.enabled) voice.cancel(); ui.toast(`Warden voice: ${voice.enabled ? 'on (' + voice.name + ')' : 'off'}`); }
   else if (ev.key === 'F9') { ev.preventDefault(); sched.injectBadBrain(); mind.toggle(true); ui.toast('Failure demo: bad brain injected'); }
   else if (ev.key === 'F8') { ev.preventDefault(); const order: Mode[] = ['ollama', 'mock', 'scripted']; sched.setMode(order[(order.indexOf(sched.mode) + 1) % 3]); }
   else if (ev.key === 'F7') { ev.preventDefault(); reduceFlashing = !reduceFlashing; audio.setReduceScares(reduceFlashing); ui.toast(`Reduce flashing & scares: ${reduceFlashing ? 'on' : 'off'}`); }

@@ -51,12 +51,14 @@ export const STEPS: GraphStep[] = [
   { id: 'stand_cot', screen: 'cell', grants: { flags: ['standing_cot'] } },
   { id: 'take_bulb', anchor: 'ceiling_lamp', items: ['cloth'], grants: { items: ['bulb'], flags: ['cell_dark'] } },
   { id: 'read_scratches', screen: 'cell', flags: ['cell_dark'], grants: { flags: ['knows_shapes', 'knows_blue'] } },
-  { id: 'p1_keypad', screen: 'cell', flags: ['knows_shapes'], grants: { flags: ['p1_solved'] } },
+  { id: 'steam_mirror', screen: 'cell', grants: { flags: ['knows_mirror'] } },
+  { id: 'p1_keypad', screen: 'cell', flags: ['knows_shapes', 'knows_mirror'], grants: { flags: ['p1_solved'] } },
 
   { id: 'power_shutter', screen: 'archive', items: ['cloth'], zone: 'sparks_archive', grants: { flags: ['shutter_open'] } },
 
   { id: 'projector_on', screen: 'archive', items: ['bulb'], grants: { flags: ['slides_seen'] } },
-  { id: 'p3_manifold', screen: 'hall', flags: ['slides_seen', 'knows_blue'], zone: 'steam_a', grants: { flags: ['lift_powered'] } },
+  { id: 'read_file12', screen: 'archive', grants: { flags: ['knows_yellow'] } },
+  { id: 'p3_manifold', screen: 'hall', flags: ['slides_seen', 'knows_blue', 'knows_yellow'], zone: 'steam_a', grants: { flags: ['lift_powered'] } },
 
   { id: 'p4_interview', screen: 'hall', grants: { flags: ['cage_open'], items: ['token'] } },
 
@@ -70,14 +72,14 @@ export const STEPS: GraphStep[] = [
 
 /** The intended solution order (golden path), used for veto explanations and eval. */
 export const GOLDEN_PATH = [
-  'take_cloth', 'stand_cot', 'take_bulb', 'read_scratches', 'p1_keypad', 'power_shutter',
-  'projector_on', 'p3_manifold', 'p4_interview', 'slide5', 'blind_warden', 'read_window', 'p5_lift',
+  'take_cloth', 'steam_mirror', 'stand_cot', 'take_bulb', 'read_scratches', 'p1_keypad', 'power_shutter',
+  'projector_on', 'read_file12', 'p3_manifold', 'p4_interview', 'slide5', 'blind_warden', 'read_window', 'p5_lift',
 ];
 
 /** Human-readable descriptions for veto messages. */
 export const STEP_LABEL: Record<string, string> = {
   take_cloth: 'take the blanket', stand_cot: 'stand on the cot', take_bulb: 'unscrew the bulb',
-  read_scratches: 'read the scratches', p1_keypad: 'open the cell door', power_shutter: 'power the shutter',
+  read_scratches: 'read the scratches', steam_mirror: 'read the steamed mirror', read_file12: 'read the file of Subject 12', p1_keypad: 'open the cell door', power_shutter: 'power the shutter',
   projector_on: 'run the projector', p3_manifold: 'pressurise the manifold', p4_interview: 'pass the interview',
   slide5: 'see slide 5', blind_warden: 'pull the camera fuse', read_window: 'read the window', p5_lift: 'enter the lift code',
   p6_vent: 'open the vent',

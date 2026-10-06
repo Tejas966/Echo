@@ -309,6 +309,17 @@ function blanketHeap(ctx: Ctx, x: number, y: number, w: number, h: number, color
 }
 
 function dynCell(ctx: Ctx, s: GameState, a: Anim) {
+  if (s.flags.mirror_steamed) {
+    // steam on the mirror; finger-writing shows through the fog (P1 second half)
+    ctx.save();
+    ctx.fillStyle = 'rgba(236,240,238,0.82)'; ctx.fillRect(420, 315, 70, 90);
+    ctx.strokeStyle = 'rgba(70,86,92,0.9)'; ctx.lineWidth = 2.2; ctx.lineCap = 'round';
+    for (const [shape, n, y] of [['cross', 1, 338], ['tri', 2, 378]] as const) {
+      shapePath(ctx, shape, 438, y, 9); ctx.stroke();
+      for (let k = 0; k < n; k++) { const tx = 458 + k * 9; ctx.beginPath(); ctx.moveTo(tx, y - 9); ctx.lineTo(tx + 1, y + 9); ctx.stroke(); }
+    }
+    ctx.restore();
+  }
   const cloth = s.objects.cloth.anchor;
   const held = s.inventory.includes('cloth');
   if (!held) {
@@ -666,7 +677,12 @@ function emCell(ctx: Ctx, s: GameState, t: number) {
       const cx = 690 + i * 78, cy = 278;
       shapePath(ctx, sc.shape, cx, cy, 22);
       ctx.stroke();
-      for (let k = 0; k < sc.tally; k++) {
+      if (sc.hidden) {
+        // gouged out: a violent zig-zag where the tally marks were
+        ctx.beginPath(); ctx.moveTo(cx - 22, 322);
+        for (let k = 0; k < 7; k++) ctx.lineTo(cx - 22 + (k + 1) * 6.3, k % 2 ? 322 : 342);
+        ctx.stroke();
+      } else for (let k = 0; k < sc.tally; k++) {
         const tx = cx - (sc.tally - 1) * 6 + k * 12;
         ctx.beginPath(); ctx.moveTo(tx - 2, 318); ctx.lineTo(tx + 2, 342); ctx.stroke();
       }

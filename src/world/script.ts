@@ -17,6 +17,8 @@ const valveClicks = (c: 'red' | 'green' | 'blue' | 'yellow'): Op[] =>
 export const GOLDEN: Op[] = [
   { op: 'mark', name: 'start' },
   { op: 'click', id: 'blanket' },
+  { op: 'click', id: 'sink' },
+  { op: 'click', id: 'mirror' },
   { op: 'click', id: 'cot' },
   { op: 'click', id: 'lamp' },
   { op: 'tick', ms: 100 },
@@ -27,6 +29,7 @@ export const GOLDEN: Op[] = [
   { op: 'click', id: 'fuse_cell_door' },
   { op: 'click', id: 'fuse_shutter' },
   { op: 'click', id: 'projector', holding: 'bulb' },
+  { op: 'click', id: 'cabinets' },
   { op: 'click', id: 'projector' }, { op: 'click', id: 'projector' }, { op: 'click', id: 'projector' },
   { op: 'click', id: 'shutter' },
   { op: 'mark', name: 'hall' },

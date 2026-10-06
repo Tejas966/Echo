@@ -28,6 +28,7 @@ npm run dev          # → http://localhost:5173
 | F8 | Cycle director: Live Gemma → Mock → Scripted |
 | F1–F4 | Debug save points (start, archive, set piece, final console) |
 | F7 | Reduce flashing and scares |
+| V | Warden spoken voice on/off (browser speech synthesis; deep, per-tone delivery) |
 | M | Mute |
 
 URL options: `?director=mock|scripted`, `?model=gemma4:e4b`.
@@ -107,9 +108,9 @@ All the narrative is data (`src/world/story.ts`). It's checked headlessly (`eval
 
 Three connected screens (Cell → Archive → Machine Hall) with 5 Tier-1 puzzles, each built from the Warden's own systems:
 
-1. **Written in the Dark**: the light never goes off… unless you take the bulb.
+1. **Written in the Dark**: the wall's scratches only show in darkness, but two of the tallies were gouged out. The missing ones are finger-written on the mirror, readable only in steam and *with* the light on. You have to juggle the bulb.
 2. **Power Ration**: 3 fuses, 4 needs. You can choose to cut power to the Warden's camera.
-3. **Subjects on Slides** (hard spike): one projector slide is a forgery. It shows *you*, dated tomorrow.
+3. **Subjects on Slides** (hard spike): one projector slide is a forgery. It shows *you*, dated tomorrow. Another gauge is smeared, and its real value is in Subject 12's file in the archive. That's information from all three rooms.
 4. **Honest Answers**: the Warden quizzes you about what you did, built from its log of you.
 5. **The Window** (hardest), with the signature set piece **"It learned your trick"**: you have used darkness all game, so the Warden forces the lights back on. You have to blind it to finish.
 

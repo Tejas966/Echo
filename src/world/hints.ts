@@ -4,8 +4,8 @@ import type { PuzzleId } from '../types';
 export const HINTS: Record<PuzzleId | 'setpiece', [string, string, string]> = {
   p1: [
     'Some things only show when I stop looking.',
-    'The light is the problem, Subject 14. Not the solution.',
-    'Wrap your hand. Take the bulb. Read the wall in the dark.',
+    'The wall needs darkness. The mirror needs light. And steam.',
+    'Run the hot tap and read the mirror while the light is on. Then take the bulb and read the wall. Order the shapes by their marks.',
   ],
   p2: [
     'Power is a budget. Spend it wisely.',
@@ -14,8 +14,8 @@ export const HINTS: Record<PuzzleId | 'setpiece', [string, string, string]> = {
   ],
   p3: [
     'My records are complete. Mostly.',
-    'Check the dates. One subject has not happened yet.',
-    'The blue slide is a forgery. Thirteen left you the real value in your cell.',
+    'Check the dates. One subject has not happened yet. And one gauge was wiped clean.',
+    'The blue slide is a forgery: Thirteen wrote the real value in your cell. The yellow value is in the file of Subject 12.',
   ],
   p4: [
     'Remember what you did.',
