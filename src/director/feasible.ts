@@ -4,7 +4,7 @@
 import type { ActionName, GameState, ValidTargets } from '../types';
 import { ACTIONS } from '../types';
 import { META, MAX_SCARES, SCARE_MIN_TENSION } from './vocabulary';
-import { mercyAllows, cooldownKey } from '../rules';
+import { mercyAllows, cooldownKey, bandOf } from '../rules';
 
 export interface CooldownCtx { cooldowns: Record<string, number>; lastHostileAt: number }
 
@@ -25,6 +25,7 @@ export function feasibleTargets(s: GameState, vt: ValidTargets, ctx: CooldownCtx
     if (a === 'play_sound') targets = targets.filter((t) => { const l = ctx.cooldowns[cooldownKey({ action: a, target: t })]; return l === undefined || s.t - l >= m.cooldownS * 1000; });
     const struggling = s.mercy.level >= 1 || s.puzzle.fails >= 3;
     if (a === 'adjust_tension' && struggling) targets = targets.filter((t) => t === 'down');
+    if (a === 'adjust_tension') { const [lo, hi] = bandOf(s); targets = targets.filter((t) => (t === 'down' ? s.tension > lo : s.tension < hi)); }
     out[a] = cooling || hostileGap || unaffordable || mercyBlocked || scareBlocked || repetitive ? [] : targets;
   }
   // keep the Warden present: after 3 silent turns in a row, silence is not offered

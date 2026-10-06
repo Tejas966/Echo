@@ -29,6 +29,7 @@ npm run dev          # → http://localhost:5173
 | F1–F4 | Debug save points (start, archive, set piece, final console) |
 | F7 | Reduce flashing and scares |
 | V | Warden spoken voice on/off (browser speech synthesis; deep, per-tone delivery) |
+| L | Save / download this game's session log |
 | M | Mute |
 
 URL options:
@@ -85,6 +86,29 @@ Here is an example of the reply it must produce. The format is enforced by a JSO
 { "saw": "dim blue hall, subject at the manifold", "action": "reveal_hint", "target": "p3", "intensity": 1,
   "line": "My records are complete, Subject 14. Mostly.", "reason": "Third manifold failure; nudge.", "confidence": 0.8 }
 ```
+
+### Per-game log files
+
+Every new game writes two files to **`logs/`**, both named with the date and time the game started (e.g. `logs/2026-10-06_15-09-40.log`):
+
+- **`.log`**: a readable timeline of the session:
+  - `PLAYER` lines: everything the user did
+  - `WORLD` lines: what happened in the game
+  - for **every Gemma call**: what it `saw`, what it `proposed`, what it `thinks` (its reason and confidence), and the `RULES` verdict and whether the action was applied
+  - every line the Warden spoke
+  - an end-of-session summary with archetype, observations and decision counts
+- **`.jsonl`**: the same session as machine-readable JSON lines, including the **full prompt text** and **raw model output** of every call.
+
+```
+[00:30.1] GEMMA   #3 via ollama · 697ms
+            saw:      "hallway illuminated, subject moving toward the left"
+            proposed: flicker_lights → hall (intensity 1)
+            thinks:   Subject is moving, introduce minor visual disruption. (confidence 0.8)
+            RULES     ACCEPTED
+[00:30.1] RULES   #3 → applied
+```
+
+The logs are written by a small endpoint in the Vite dev server (`npm run dev`). Press **L** in-game to also download the readable log from the browser.
 
 Where to find each fixed part of the request:
 - System prompt and few-shot examples: `src/director/prompt.ts`

@@ -14,6 +14,7 @@ import { Scheduler, type Mode } from './director/scheduler';
 import { computeTone, tickBudget, updateMercy, onPuzzleSolved, filterLine, applyTensionDelta } from './rules';
 import { createStory } from './story';
 import { WardenVoice } from './audio/speech';
+import { SessionLog } from './telemetry/session-log';
 import { chapterFor, objectiveFor, FRAGMENTS, FRAGMENT_FOR, CLIFFHANGER } from './world/story';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -49,6 +50,7 @@ let idleAccum = 0;
 let started = false;
 let endingStarted = false;
 let reduceFlashing = false;
+let slog: SessionLog | null = null;   // judges' per-game log: logs/<date_time>.log + .jsonl
 let cinematic = false;            // prologue / wake-up running: no input, game clock paused
 let chapterId = '';
 let objective = '';
@@ -69,9 +71,9 @@ const sched = new Scheduler({
     gfx.render(dirCtx, state, frame, { director: true, width: 512, height: 288 });
     return dirCanvas.toDataURL('image/jpeg', 0.6).split(',')[1];
   },
-  onRecord: (r) => { mind.record(r); refreshMindStats(); },
+  onRecord: (r) => { mind.record(r); refreshMindStats(); slog?.decision(r); },
   onThinking: (on) => { frame.thinking = on; audio.setThinking(on); },
-  onStatus: (t) => { mind.setMode(t); ui.setModelStatus(`Warden brain: ${t}`); },
+  onStatus: (t) => { mind.setMode(t); ui.setModelStatus(`Warden brain: ${t}`); slog?.note(state.t, `director mode: ${t}`); },
 }, { model: params.get('model') ?? undefined });
 sched.onApply((d) => dispatch(applyWardenDecision(state, d), d.action !== 'reveal_hint'));
 
@@ -96,6 +98,7 @@ function speak(o: Outcome, ambient = false) {
   for (const line of o.lines ?? []) {
     if (ambient && pendingLines >= 1) continue;
     if (line.speaker === 'warden') state.warden.lineHistory = [...state.warden.lineHistory, line.text].slice(-6);
+    slog?.said(state.t, line.speaker, line.text, line.speaker === 'warden' ? line.tone ?? state.warden.tone : undefined);
     pendingLines++;
     sayChain = sayChain.then(() => {
       if (line.speaker !== 'warden') return ui.say(line, () => audio.sfx('typewriter', { volume: 0.25 }));
@@ -128,6 +131,7 @@ function dispatch(o: Outcome, ambient = false) {
 
 function onEvent(e: LogEvent) {
   log.push(e);
+  slog?.player(e);
   if (e.kind === 'solve' && /^p\d$/.test(e.a)) { onPuzzleSolved(state); sched.requestUrgent('solve'); storyBeat(e.a as 'p1'); }
   if (e.kind === 'fail' && state.puzzle.fails === 3) sched.requestUrgent('fail3');
   if (e.kind === 'fail' && e.a === 'rush_exit') sched.requestUrgent('rush');
@@ -184,6 +188,7 @@ canvas.addEventListener('click', (ev) => {
   if (clickTimes.length > 8) { sched.requestUrgent('spam'); if (now - lastClick < 250) return; } // debounce spam
   lastClick = now;
   const { x, y } = toLogical(ev);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return;
   const h = hit(x, y);
   const holding = state.player.holding;
   if (h) {
@@ -219,8 +224,9 @@ function reach(x: number) { frame.reachingAt = x; reachUntil = performance.now()
 window.addEventListener('keydown', (ev) => {
   if (ev.key === 'Tab') { ev.preventDefault(); mind.toggle(); setTimeout(() => window.dispatchEvent(new Event('resize')), 300); }
   else if (ev.key === 'm' || ev.key === 'M') { muted = !muted; audio.setMuted(muted); voice.setVolume(muted ? 0 : 0.9); if (muted) voice.cancel(); ui.toast(muted ? 'Muted' : 'Sound on'); }
+  else if (ev.key === 'l' || ev.key === 'L') { if (slog) { slog.flush(); slog.download(); ui.toast(`Log saved: logs/${slog.name}.log`); } }
   else if (ev.key === 'v' || ev.key === 'V') { voice.enabled = !voice.enabled; if (!voice.enabled) voice.cancel(); ui.toast(`Warden voice: ${voice.enabled ? 'on (' + voice.name + ')' : 'off'}`); }
-  else if (ev.key === 'F9') { ev.preventDefault(); sched.injectBadBrain(); mind.toggle(true); ui.toast('Failure demo: bad brain injected'); }
+  else if (ev.key === 'F9') { ev.preventDefault(); sched.injectBadBrain(); mind.toggle(true); ui.toast('Failure demo: bad brain injected'); slog?.note(state.t, 'FAILURE DEMO: bad brain injected (F9)'); }
   else if (ev.key === 'F8') { ev.preventDefault(); const order: Mode[] = ['ollama', 'mock', 'scripted']; sched.setMode(order[(order.indexOf(sched.mode) + 1) % 3]); }
   else if (ev.key === 'F7') { ev.preventDefault(); reduceFlashing = !reduceFlashing; audio.setReduceScares(reduceFlashing); ui.toast(`Reduce flashing & scares: ${reduceFlashing ? 'on' : 'off'}`); }
   else if (['F1', 'F2', 'F3', 'F4'].includes(ev.key)) { ev.preventDefault(); if (cinematic) return; loadSave(({ F1: 'start', F2: 'archive', F3: 'setpiece', F4: 'console' } as const)[ev.key as 'F1']); }
@@ -237,6 +243,7 @@ function loadSave(mark: 'start' | 'archive' | 'setpiece' | 'console') {
   refreshInventory();
   gfx.fx({ kind: 'transition', to: state.screen });
   ui.toast(`Debug save: ${mark}`);
+  slog?.note(state.t, `debug save loaded: ${mark}`);
   chapterId = chapterFor(state).id; objective = '';
 }
 
@@ -273,6 +280,7 @@ async function runEnding() {
     stats: buildStats(state), observations: await obsPromise,
     decisions: { ...sched.counts, topAction: Object.entries(sched.actionCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? '—', meanLatencyMs: sched.meanLatency() },
   };
+  slog?.end({ outcome: state.ended, time_in_facility: `${Math.round(state.t / 1000)} s`, archetype: report.archetype, habit: report.habit, first_fuse: report.fuseChoice, warden_decisions: report.decisions, observations: report.observations, stats: report.stats.map((r) => `${r.label}: ${r.value}`).join(' | ') });
   ui.showEnd(report, () => location.reload());
 }
 
@@ -346,6 +354,8 @@ function step(dt: number) {
 async function begin() {
   if (started) return;
   started = true;
+  slog = new SessionLog({ started: new Date().toString(), model: sched.ollama.model, director: sched.label(), voice: voice.enabled ? voice.name : 'off', screen: `${innerWidth}x${innerHeight} @${devicePixelRatio}x` });
+  slog.note(0, 'game started (prologue)');
   await audio.init().catch(() => {});
   refreshInventory();
   if (!params.has('skipintro')) {
