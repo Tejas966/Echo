@@ -12,6 +12,8 @@ import { GOLDEN, runScript } from './world/script';
 import { computeHabits, archetype, dominantHabit, fuseChoice, buildStats, templateObservations, type Habits } from './profile/habits';
 import { Scheduler, type Mode } from './director/scheduler';
 import { computeTone, tickBudget, updateMercy, onPuzzleSolved, filterLine, applyTensionDelta } from './rules';
+import { createStory } from './story';
+import { chapterFor, objectiveFor, FRAGMENTS, FRAGMENT_FOR, CLIFFHANGER } from './world/story';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 const ctx = canvas.getContext('2d')!;
@@ -22,6 +24,20 @@ const dirCtx = dirCanvas.getContext('2d')!;
 const gfx = createGfx();
 const audio = createAudio();
 const ui = createUI(document.getElementById('ui-root')!);
+const story = createStory(document.getElementById('stage')!, audio);
+
+// ---------- crisp rendering: canvas backing store = displayed size × devicePixelRatio ----------
+function fitCanvas() {
+  const r = canvas.getBoundingClientRect();
+  if (!r.width) return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  const w = Math.min(3840, Math.round(r.width * dpr));
+  const h = Math.round((w * 9) / 16);
+  if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+}
+new ResizeObserver(fitCanvas).observe(canvas);
+window.addEventListener('resize', fitCanvas);
+fitCanvas();
 
 let state: GameState = createInitialState();
 let log: LogEvent[] = [];
@@ -30,6 +46,10 @@ let idleAccum = 0;
 let started = false;
 let endingStarted = false;
 let reduceFlashing = false;
+let cinematic = false;            // prologue / wake-up running: no input, game clock paused
+let chapterId = '';
+let objective = '';
+let storyTimer = 0;
 let muted = false;
 
 const frame: FrameInfo = { t: 0, dt: 0, walking: false, reachingAt: null, hover: null, thinking: false, reduceFlashing: false };
@@ -98,11 +118,35 @@ function dispatch(o: Outcome, ambient = false) {
 
 function onEvent(e: LogEvent) {
   log.push(e);
-  if (e.kind === 'solve' && /^p\d$/.test(e.a)) { onPuzzleSolved(state); sched.requestUrgent('solve'); }
+  if (e.kind === 'solve' && /^p\d$/.test(e.a)) { onPuzzleSolved(state); sched.requestUrgent('solve'); storyBeat(e.a as 'p1'); }
   if (e.kind === 'fail' && state.puzzle.fails === 3) sched.requestUrgent('fail3');
   if (e.kind === 'fail' && e.a === 'rush_exit') sched.requestUrgent('rush');
   if (e.kind === 'enter') { audio.setScreen(state.screen); sched.requestUrgent('enter'); }
   if (e.kind === 'warden' && e.a === 'setpiece') sched.requestUrgent('setpiece:dark');
+}
+
+/** Story hook after each test: Warden cliffhanger + a Subject 13 fragment (also kept in the journal). */
+function storyBeat(p: 'p1' | 'p2' | 'p3' | 'p4' | 'p5') {
+  const cliff = CLIFFHANGER[p];
+  if (cliff) speak({ lines: cliff });
+  const i = FRAGMENT_FOR[p];
+  if (i === undefined || state.flags[`fragment_${i}`]) return;
+  state.flags[`fragment_${i}`] = true;
+  state.journal.push(`Subject 13, fragment ${i + 1}/${FRAGMENTS.length}: "${FRAGMENTS[i]}"`);
+  ui.setJournal(state.journal);
+  setTimeout(() => { void story.showFragment(i + 1, FRAGMENTS.length, FRAGMENTS[i]); }, 1800);
+}
+
+/** Chapter cards + live objective, checked a few times a second. */
+function updateStory() {
+  if (state.ended) { if (objective) { objective = ''; story.setObjective(null); } return; }
+  const ch = chapterFor(state);
+  if (ch.id !== chapterId) {
+    chapterId = ch.id;
+    void story.showChapter({ numeral: ch.numeral, title: ch.title, subtitle: ch.subtitle, color: ch.color, difficulty: ch.difficulty });
+  }
+  const obj = objectiveFor(state);
+  if (obj !== objective) { objective = obj; story.setObjective(obj, ch.color); }
 }
 
 function refreshInventory() {
@@ -123,7 +167,7 @@ function hit(x: number, y: number) {
 const clickTimes: number[] = [];
 let lastClick = 0;
 canvas.addEventListener('click', (ev) => {
-  if (!started || endingStarted) return;
+  if (!started || endingStarted || cinematic) return;
   const now = performance.now();
   clickTimes.push(now);
   while (clickTimes.length && now - clickTimes[0] > 3000) clickTimes.shift();
@@ -168,7 +212,7 @@ window.addEventListener('keydown', (ev) => {
   else if (ev.key === 'F9') { ev.preventDefault(); sched.injectBadBrain(); mind.toggle(true); ui.toast('Failure demo: bad brain injected'); }
   else if (ev.key === 'F8') { ev.preventDefault(); const order: Mode[] = ['ollama', 'mock', 'scripted']; sched.setMode(order[(order.indexOf(sched.mode) + 1) % 3]); }
   else if (ev.key === 'F7') { ev.preventDefault(); reduceFlashing = !reduceFlashing; audio.setReduceScares(reduceFlashing); ui.toast(`Reduce flashing & scares: ${reduceFlashing ? 'on' : 'off'}`); }
-  else if (['F1', 'F2', 'F3', 'F4'].includes(ev.key)) { ev.preventDefault(); loadSave(({ F1: 'start', F2: 'archive', F3: 'setpiece', F4: 'console' } as const)[ev.key as 'F1']); }
+  else if (['F1', 'F2', 'F3', 'F4'].includes(ev.key)) { ev.preventDefault(); if (cinematic) return; loadSave(({ F1: 'start', F2: 'archive', F3: 'setpiece', F4: 'console' } as const)[ev.key as 'F1']); }
 });
 
 /** Debug save points: replay the golden path headlessly up to a mark. */
@@ -182,12 +226,14 @@ function loadSave(mark: 'start' | 'archive' | 'setpiece' | 'console') {
   refreshInventory();
   gfx.fx({ kind: 'transition', to: state.screen });
   ui.toast(`Debug save: ${mark}`);
+  chapterId = chapterFor(state).id; objective = '';
 }
 
 // ---------- ending ----------
 async function runEnding() {
   endingStarted = true;
   sched.running = false;
+  story.setObjective(null);
   audio.setScreen('exit');
   const habit = dominantHabit(habits, state);
   const L = (text: string, tone: 'cold' | 'polite' | 'rattled' = 'cold') => ({ speaker: 'warden' as const, text, tone });
@@ -240,7 +286,7 @@ let idleNotified = false;
 function loop(now: number) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   frame.t = now; frame.dt = dt; frame.reduceFlashing = reduceFlashing;
-  if (started && !endingStarted) step(dt);
+  if (started && !endingStarted && !cinematic) step(dt);
   if (frame.reachingAt !== null && now > reachUntil) frame.reachingAt = null;
   gfx.render(ctx, state, frame, { director: false, width: canvas.width, height: canvas.height });
   requestAnimationFrame(loop);
@@ -280,16 +326,25 @@ function step(dt: number) {
   audio.setTension(state.tension);
   audio.setBlind(state.warden.blind);
   sched.update();
+  storyTimer += ms;
+  if (storyTimer > 300) { storyTimer = 0; updateStory(); }
   if (state.ended && state.screen === 'exit' && !endingStarted) void runEnding();
 }
 
 // ---------- boot ----------
-function begin() {
+async function begin() {
   if (started) return;
   started = true;
-  void audio.init().then(() => audio.setScreen(state.screen));
-  sched.running = true;
+  await audio.init().catch(() => {});
   refreshInventory();
+  if (!params.has('skipintro')) {
+    cinematic = true;
+    try { await story.playPrologue(); await story.playWakeUp(); } catch { /* never block the game on a cinematic */ }
+    cinematic = false;
+  }
+  audio.setScreen(state.screen);
+  sched.running = true;
+  updateStory();
   speak({ lines: [
     { speaker: 'narrator', text: 'A white cell. A cot, a sink, a door with no handle. A lens on the wall turns toward you.' },
     { speaker: 'warden', text: 'Good morning, Subject 14. You are awake. Excellent.', tone: 'polite' },

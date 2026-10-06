@@ -27,7 +27,9 @@ const FOG_COLOR: Record<ScreenId, string> = {
 
 export function createGfx(): GfxAPI {
   // ---------- caches ----------
-  const bg = new Map<ScreenId, HTMLCanvasElement>();
+  // Background caches keyed by `${screen}@${pixelScale}`; built at full output resolution.
+  const bg = new Map<string, HTMLCanvasElement>();
+  let mainScale = 1;
   const darkCanvases = new Map<string, HTMLCanvasElement>();
   let scratch: HTMLCanvasElement | null = null;
   const particles = new Particles();
@@ -50,12 +52,20 @@ export function createGfx(): GfxAPI {
   const bursts: { slot: HazardSlot; kind: 0 | 1; until: number }[] = [];
   const pendingFx: FxEvent[] = [];
 
-  function getBg(screen: ScreenId) {
-    let c = bg.get(screen);
+  function getBg(screen: ScreenId, scale: number) {
+    const key = `${screen}@${scale}`;
+    let c = bg.get(key);
     if (!c) {
-      c = makeCanvas(LW, LH);
-      drawStatic(c.getContext('2d')!, screen);
-      bg.set(screen, c);
+      // Drop caches built for a stale main-view scale (scale 1 is kept for the director view).
+      for (const k of [...bg.keys()]) {
+        const ks = +k.slice(k.indexOf('@') + 1);
+        if (ks !== 1 && ks !== scale) bg.delete(k);
+      }
+      c = makeCanvas(LW * scale, LH * scale);
+      const bx = c.getContext('2d')!;
+      bx.setTransform(c.width / LW, 0, 0, c.height / LH, 0, 0);
+      drawStatic(bx, screen);
+      bg.set(key, c);
     }
     return c;
   }
@@ -63,7 +73,11 @@ export function createGfx(): GfxAPI {
   function getDark(w: number, h: number) {
     const key = `${w}x${h}`;
     let c = darkCanvases.get(key);
-    if (!c) { c = makeCanvas(w, h); darkCanvases.set(key, c); }
+    if (!c) {
+      // keep only the director size + the current main size
+      if (darkCanvases.size >= 2) darkCanvases.clear();
+      c = makeCanvas(w, h); darkCanvases.set(key, c);
+    }
     return c;
   }
 
@@ -136,7 +150,9 @@ export function createGfx(): GfxAPI {
     if (dir) eff = Math.max(eff, 0.55);
 
     // ---- scene ----
-    ctx.drawImage(getBg(s.screen), 0, 0, LW, LH);
+    // Director view reuses the 1x cache (as before); main view gets a cache at output resolution.
+    if (!dir) mainScale = Math.round((o.width / LW) * 1000) / 1000;
+    ctx.drawImage(getBg(s.screen, dir ? 1 : mainScale), 0, 0, LW, LH);
     drawDynamic(ctx, s, anim, now);
 
     // player
@@ -403,26 +419,29 @@ export function createGfx(): GfxAPI {
       ctx.drawImage(vignette(w, h, '150,0,10'), 0, 0);
     }
     ctx.globalAlpha = 1;
-    // grain
+    // grain: crisp nearest-neighbour tile, grain size scaled with output resolution
     const gt = grainTile();
     const pat = ctx.createPattern(gt, 'repeat');
     if (pat) {
-      const ox = Math.floor(Math.random() * 256), oy = Math.floor(Math.random() * 256);
-      ctx.translate(-ox, -oy);
+      const gs = Math.max(1, Math.round(w / LW));
+      const ox = Math.floor(Math.random() * 256) * gs, oy = Math.floor(Math.random() * 256) * gs;
+      pat.setTransform(new DOMMatrix([gs, 0, 0, gs, -ox, -oy]));
+      const sm = ctx.imageSmoothingEnabled;
+      ctx.imageSmoothingEnabled = false;
       ctx.globalCompositeOperation = 'overlay';
       ctx.globalAlpha = 0.07 + T / 2000;
       ctx.fillStyle = pat;
-      ctx.fillRect(ox, oy, w, h);
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillRect(0, 0, w, h);
+      ctx.imageSmoothingEnabled = sm;
       ctx.globalCompositeOperation = 'source-over';
       ctx.globalAlpha = 1;
     }
     // occasional ambient scan line
     const cyc = now % 7000;
     if (cyc < 1400) {
-      const y = (cyc / 1400) * h;
+      const y = Math.round((cyc / 1400) * h);
       ctx.fillStyle = 'rgba(200,230,255,0.035)';
-      ctx.fillRect(0, y, w, 3 * (h / LH));
+      ctx.fillRect(0, y, w, Math.max(1, Math.round(3 * (h / LH))));
     }
     // decision scan sweep
     const sp = (now - scanT0) / 650;
@@ -432,7 +451,7 @@ export function createGfx(): GfxAPI {
       const g = ctx.createLinearGradient(0, y - 40, 0, y);
       g.addColorStop(0, hexA(col, 0)); g.addColorStop(1, hexA(col, 0.22 * (1 - sp)));
       ctx.fillStyle = g; ctx.fillRect(0, y - 40, w, 40);
-      ctx.fillStyle = hexA(col, 0.6 * (1 - sp)); ctx.fillRect(0, y, w, 2);
+      ctx.fillStyle = hexA(col, 0.6 * (1 - sp)); ctx.fillRect(0, Math.round(y), w, Math.max(2, Math.round(2 * h / LH)));
     }
     // glitch
     const rattledGlitch = s.warden.tone === 'rattled' && !f.reduceFlashing && (now % 3100) < 90;
@@ -528,12 +547,15 @@ export function createGfx(): GfxAPI {
     const gt = grainTile();
     const pat = ctx.createPattern(gt, 'repeat');
     if (pat) {
-      const ox = Math.floor(hash(Math.floor(now / 50)) * 256), oy = Math.floor(hash(Math.floor(now / 50) + 9) * 256);
-      ctx.translate(-ox, -oy);
+      const gs = Math.max(1, Math.round(w / LW));
+      const ox = Math.floor(hash(Math.floor(now / 50)) * 256) * gs, oy = Math.floor(hash(Math.floor(now / 50) + 9) * 256) * gs;
+      pat.setTransform(new DOMMatrix([gs, 0, 0, gs, -ox, -oy]));
+      const sm = ctx.imageSmoothingEnabled;
+      ctx.imageSmoothingEnabled = false;
       ctx.globalAlpha = 0.45;
       ctx.fillStyle = pat;
-      ctx.fillRect(ox, oy, w, h);
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillRect(0, 0, w, h);
+      ctx.imageSmoothingEnabled = sm;
       ctx.globalAlpha = 1;
     }
     ctx.fillStyle = 'rgba(0,0,0,0.7)';

@@ -84,6 +84,25 @@ If Ollama isn't running, the game says so and plays with the **scripted Warden**
 
 ---
 
+## The story
+
+The game opens with an ~80 s skippable cinematic prologue: the Halvorsen Institute, Facility W-14, the Warden, Subjects 09–13, and the silence that followed. Then comes a disoriented **wake-up**, with eyes opening and closing and double vision, before you're dropped into the white cell. The game is told in five coloured chapters, each with a difficulty tag:
+
+| Chapter | Title | Difficulty |
+|---|---|---|
+| I | The White Room | easy |
+| II | The Archive | medium |
+| III | False Records | hard |
+| IV | The Interview | breather |
+| V | What It Learned | hardest |
+
+Hooks that keep you playing:
+- a live objective line
+- a Warden cliffhanger at the end of every test
+- five collectible **Subject 13 fragments**, one per test, that piece together what the Warden really is
+
+All the narrative is data (`src/world/story.ts`). It's checked headlessly (`eval/story.ts`): chapters only move forward, and there's always an objective.
+
 ## The game
 
 Three connected screens (Cell → Archive → Machine Hall) with 5 Tier-1 puzzles, each built from the Warden's own systems:

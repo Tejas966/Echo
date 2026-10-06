@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
-    "eval": "tsx eval/run-rules.ts && tsx eval/golden.ts",
+    "eval": "tsx eval/run-rules.ts && tsx eval/golden.ts && tsx eval/tier2.ts && tsx eval/story.ts",
     "eval:rules": "tsx eval/run-rules.ts",
     "eval:golden": "tsx eval/golden.ts",
     "eval:gemma": "tsx eval/run-gemma.ts",

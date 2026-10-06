@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Story harness (dev only)</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #050608; overflow: hidden; font-family: 'Courier New', monospace; color: #d8e0e8; }
+    #app { position: relative; display: flex; height: 100%; }
+    #stage { position: relative; flex: 1; display: flex; align-items: center; justify-content: center; min-width: 0; }
+    #game { width: 100%; max-height: 100%; aspect-ratio: 16 / 9; display: block; }
+    #ui-root { position: absolute; inset: 0; pointer-events: none; }
+    #bar { position: fixed; left: 4px; bottom: 4px; z-index: 99; display: flex; gap: 4px; }
+    #bar button { font: 11px monospace; }
+  </style>
+</head>
+<body>
+  <div id="app"><div id="stage"><canvas id="game" width="1280" height="720"></canvas><div id="ui-root"></div></div></div>
+  <div id="bar">
+    <button data-a="pro">prologue</button><button data-a="wake">wake</button><button data-a="ch">chapter</button>
+    <button data-a="ch2">2 chapters</button><button data-a="obj">objective</button><button data-a="frag">fragment</button>
+  </div>
+  <script type="module" src="./dev.ts"></script>
+</body>
+</html>

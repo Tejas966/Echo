@@ -126,6 +126,7 @@ export function vignette(w: number, h: number, color: string): HTMLCanvasElement
   const key = `${w}x${h}${color}`;
   let v = vigCache.get(key);
   if (v) return v;
+  if (vigCache.size > 6) vigCache.clear(); // drop stale sizes after a resize
   v = makeCanvas(w, h);
   const c = v.getContext('2d')!;
   const g = c.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.35, w / 2, h / 2, Math.hypot(w, h) * 0.55);

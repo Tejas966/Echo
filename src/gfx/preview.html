@@ -29,7 +29,10 @@ if (q.get('cloth')) s.objects.cloth.anchor = q.get('cloth');
 if (q.get('x')) s.player.x = +q.get('x');
 if (q.get('cot')) { s.player.standingOn = 'cot'; s.player.x = 230; }
 if (q.get('hold')) s.player.holding = q.get('hold');
-const ctx = document.getElementById('c').getContext('2d');
+const CW = +(q.get('w') || 1280), CH = Math.round(CW * 9 / 16);
+const cEl = document.getElementById('c'); cEl.width = CW; cEl.height = CH;
+if (q.get('native')) { cEl.style.width = (CW / devicePixelRatio) + 'px'; }
+const ctx = cEl.getContext('2d');
 const dctx = document.getElementById('d').getContext('2d');
 let last = performance.now(), frames = 0, acc = 0;
 const walking = !!q.get('walk');
@@ -38,10 +41,10 @@ function loop(t) {
   if (walking) { s.player.x += 120 * dt * s.player.facing; if (s.player.x > 1100) s.player.facing = -1; if (s.player.x < 150) s.player.facing = 1; }
   const f = { t, dt, walking, reachingAt: q.get('reach') ? +q.get('reach') : null, hover: q.get('hover'), thinking: !!q.get('think'), reduceFlashing: !!q.get('reduce') };
   const t0 = performance.now();
-  g.render(ctx, s, f, { director: false, width: 1280, height: 720 });
-  g.render(dctx, s, f, { director: true, width: 512, height: 288 });
+  g.render(ctx, s, f, { director: false, width: CW, height: CH });
   acc += performance.now() - t0; frames++;
-  if (frames % 60 === 0) { document.getElementById('bar').textContent = 'avg render ms: ' + (acc / frames).toFixed(2); }
+  g.render(dctx, s, f, { director: true, width: 512, height: 288 });
+  if (frames % 60 === 0) { document.getElementById('bar').textContent = CW + 'x' + CH + ' avg main render ms: ' + (acc / frames).toFixed(2); }
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
