@@ -149,6 +149,14 @@ Simulated cautious, reckless and idle players over 12 minutes each. The room beh
 | Reckless (spams, fails) | 9 | 3 | cold (71%), the Warden eases off |
 | Idle (wanders off) | 7 | 1 | polite / mocking |
 
+The same run with **live Gemma** as the Warden (`-- --gemma`, 240 real decisions per archetype):
+
+| Archetype | Hints given | Max mercy | Hostile actions | Dominant tone |
+|---|---|---|---|---|
+| Cautious | 2 | 0 | 6% | polite (93%) |
+| Reckless | 14 | 3 | 13% | cold (72%) |
+| Idle | 9 | 1 | 0% | polite / mocking |
+
 ---
 
 ## Project layout
