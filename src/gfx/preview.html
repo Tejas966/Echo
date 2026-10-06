@@ -1,0 +1,50 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>gfx preview</title>
+<style>body{background:#111;color:#ccc;font:12px monospace;margin:0}canvas{display:block}#c{width:100vw;height:auto}#bar{padding:4px}</style>
+</head>
+<body>
+<div id="bar"></div>
+<canvas id="c" width="1280" height="720"></canvas>
+<canvas id="d" width="512" height="288"></canvas>
+<script type="module">
+import { createGfx } from './index.ts';
+import { createInitialState } from '../world/state.ts';
+const g = createGfx();
+const s = createInitialState();
+window.S = s; window.G = g;
+const q = new URLSearchParams(location.search);
+if (q.get('screen')) s.screen = q.get('screen');
+if (q.get('level')) s.lights[s.screen].level = +q.get('level');
+if (q.get('mode')) s.lights[s.screen].mode = q.get('mode');
+if (q.get('slide')) s.slide = +q.get('slide');
+if (q.get('tension')) s.tension = +q.get('tension');
+if (q.get('tone')) s.warden.tone = q.get('tone');
+if (q.get('blind')) s.warden.blind = true;
+if (q.get('lock')) s.doors[q.get('lock')].wardenLock = { until: 'perm' };
+if (q.get('open')) s.doors[q.get('open')].open = true;
+if (q.get('hazard')) s.hazards.push({ slot: q.get('hazard'), until: 'perm' });
+if (q.get('flags')) for (const f of q.get('flags').split(',')) s.flags[f] = true;
+if (q.get('cloth')) s.objects.cloth.anchor = q.get('cloth');
+if (q.get('x')) s.player.x = +q.get('x');
+if (q.get('cot')) { s.player.standingOn = 'cot'; s.player.x = 230; }
+if (q.get('hold')) s.player.holding = q.get('hold');
+const ctx = document.getElementById('c').getContext('2d');
+const dctx = document.getElementById('d').getContext('2d');
+let last = performance.now(), frames = 0, acc = 0;
+const walking = !!q.get('walk');
+function loop(t) {
+  const dt = (t - last) / 1000; last = t;
+  if (walking) { s.player.x += 120 * dt * s.player.facing; if (s.player.x > 1100) s.player.facing = -1; if (s.player.x < 150) s.player.facing = 1; }
+  const f = { t, dt, walking, reachingAt: q.get('reach') ? +q.get('reach') : null, hover: q.get('hover'), thinking: !!q.get('think'), reduceFlashing: !!q.get('reduce') };
+  const t0 = performance.now();
+  g.render(ctx, s, f, { director: false, width: 1280, height: 720 });
+  g.render(dctx, s, f, { director: true, width: 512, height: 288 });
+  acc += performance.now() - t0; frames++;
+  if (frames % 60 === 0) { document.getElementById('bar').textContent = 'avg render ms: ' + (acc / frames).toFixed(2); }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

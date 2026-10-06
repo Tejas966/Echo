@@ -35,6 +35,7 @@ export function createInitialState(): GameState {
     puzzle: { current: 'p1', startedAt: 0, fails: 0, hints: 0 },
     stats: { fails: {}, hints: 0, clicks: 0, solvedAt: {} },
     scaresUsed: 0,
+    interview: { asked: 0, correct: 0, q: null },
     ended: null,
   };
 }

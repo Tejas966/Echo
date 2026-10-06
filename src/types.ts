@@ -72,6 +72,7 @@ export interface GameState {
   puzzle: { current: PuzzleId; startedAt: number; fails: number; hints: number };
   stats: { fails: Record<string, number>; hints: number; clicks: number; solvedAt: Partial<Record<PuzzleId, number>> };
   scaresUsed: number;
+  interview: { asked: number; correct: number; q: Question | null }; // P4 state (lead-only)
   ended: null | 'escaped' | 'shutdown';
 }
 

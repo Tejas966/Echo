@@ -45,6 +45,8 @@ const dark = (s: GameState, scr: ScreenId) => s.lights[scr].level < 0.3;
 export const HOTSPOTS: Hotspot[] = [
   // CELL
   { id: 'blanket', screen: 'cell', x: 120, y: 470, w: 200, h: 40, label: 'Blanket', walkX: 220, visible: (s) => s.objects.cloth.anchor === 'cot' && !s.inventory.includes('cloth') },
+  { id: 'blanket_floor', screen: 'cell', x: 540, y: 560, w: 130, h: 40, label: 'Blanket', walkX: 600, visible: (s) => s.objects.cloth.anchor === 'cell_floor' && !s.inventory.includes('cloth') },
+  { id: 'blanket_under', screen: 'cell', x: 140, y: 575, w: 160, h: 25, label: 'Blanket (under the cot)', walkX: 220, visible: (s) => s.objects.cloth.anchor === 'under_cot' && !s.inventory.includes('cloth') },
   { id: 'cot', screen: 'cell', x: 80, y: 500, w: 300, h: 100, label: 'Cot', walkX: 230 },
   { id: 'lamp', screen: 'cell', x: 580, y: 30, w: 120, h: 50, label: 'Ceiling lamp', walkX: 640 },
   { id: 'sink', screen: 'cell', x: 400, y: 440, w: 110, h: 70, label: 'Sink', walkX: 455 },

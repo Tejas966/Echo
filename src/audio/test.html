@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Audio Test Bench</title>
+<style>
+  body { background: #0b0d10; color: #c9d1d9; font: 13px/1.4 system-ui, sans-serif; margin: 16px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: #7d8590; margin: 18px 0 6px; }
+  button { background: #161b22; color: #c9d1d9; border: 1px solid #30363d; border-radius: 4px; padding: 5px 9px; margin: 2px; cursor: pointer; }
+  button:hover { border-color: #8b949e; }
+  button.on { background: #3b1d1d; border-color: #a33; }
+  #meter { font-family: ui-monospace, monospace; margin-top: 8px; }
+  #bar { height: 8px; background: #2ea043; width: 0; transition: width 60ms; }
+  pre { background: #0d1117; border: 1px solid #30363d; padding: 8px; max-height: 300px; overflow: auto; }
+  label { margin-right: 12px; }
+</style>
+</head>
+<body>
+  <button id="init">▶ Init audio</button>
+  <div id="meter">peak: <span id="pk">-inf</span> dBFS · hold: <span id="hold">-inf</span> dBFS <button id="reset">reset hold</button><div id="bar"></div></div>
+  <h2>Screen</h2><div id="screens"></div>
+  <h2>Tension <span id="tv">0</span></h2><input id="tension" type="range" min="0" max="100" value="0" style="width:320px" />
+  <h2>Voice</h2><div id="tones"></div>
+  <h2>Toggles</h2><div id="toggles"></div>
+  <label>master <input id="master" type="range" min="0" max="1" step="0.01" value="0.8" /></label>
+  <h2>SFX</h2><div id="cues"></div>
+  <h2>Measure</h2><button id="measure">Measure all cues (peak per cue)</button><pre id="out"></pre>
+  <script type="module" src="./test.ts"></script>
+</body>
+</html>

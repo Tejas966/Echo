@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>UI harness (dev only)</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #050608; overflow: hidden; font-family: 'Courier New', monospace; color: #d8e0e8; }
+    #app { position: relative; display: flex; height: 100%; }
+    #stage { position: relative; flex: 1; display: flex; align-items: center; justify-content: center; min-width: 0; }
+    #game { width: 100%; max-height: 100%; aspect-ratio: 16 / 9; display: block; background: linear-gradient(#1a2026, #0c1013); }
+    #ui-root { position: absolute; inset: 0; pointer-events: none; }
+    #ui-root > * { pointer-events: auto; }
+  </style>
+</head>
+<body>
+  <div id="app"><div id="stage"><canvas id="game" width="1280" height="720"></canvas><div id="ui-root"></div></div></div>
+  <script type="module">
+    import { createUI } from './index.ts';
+    const ui = createUI(document.getElementById('ui-root'));
+    window.ui = ui;
+    const q = new URLSearchParams(location.search).get('t') || 'title';
+    let inv = ['cloth', 'bulb', 'fuse', 'fuse', 'token', 'spare_fuse', 'core_key'], hold = null;
+    const setInv = () => ui.setInventory(inv, hold, (i) => { hold = i; ui.toast('selected: ' + i); setInv(); });
+    if (q === 'title') ui.showTitle(() => ui.toast('started'), { modelStatus: 'Warden brain: gemma4:e2b — warming up…' });
+    if (q === 'game') {
+      setInv();
+      ui.setModelStatus('Warden brain: gemma4:e2b · ready · 0.8 s');
+      ui.setJournal(['Scratches on the wall: four shapes, counted in tallies.']);
+      setTimeout(() => ui.setJournal(['Scratches on the wall: four shapes, counted in tallies.', 'Slide 3 is dated TOMORROW.']), 1500);
+      ui.setHoverLabel('Filing cabinets', 500, 300);
+      ui.say({ speaker: 'narrator', text: 'The light hums. Somewhere a pipe drips, patiently.' });
+      ui.say({ speaker: 'warden', tone: 'polite', text: 'Excellent, Subject 14. Thirteen took twice as long.' });
+      ui.say({ speaker: 'warden', tone: 'mocking', text: 'Fascinating. You tried that already. Twice.' });
+      ui.say({ speaker: 'warden', tone: 'rattled', text: "That— that was not the expected sequence. I can't— I cannot see you." });
+      ui.say({ speaker: 'subject13', text: 'read it in the mirror. it is backwards. it was always backwards.' });
+      ui.say({ speaker: 'warden', tone: 'cold', text: 'Rest, if you need to. The room will wait.' });
+    }
+    if (q === 'keypad' || q === 'console') ui.openPad(q, (s) => console.log('press', s), () => ui.toast('closed'));
+    if (q === 'ask') ui.ask({ prompt: 'Question one, Subject 14. How many tallies did Subject 11 scratch beside the circle?', options: ['One', 'Two', 'Three', 'Four'], correct: 2 }).then((i) => ui.toast('answered ' + i));
+    if (q === 'end') ui.showEnd({
+      timeMs: 1234000, escaped: true, archetype: 'methodical', habit: 'You check every drawer twice before opening a door.', fuseChoice: 'camera',
+      stats: [{ label: 'Total time', value: '20:34' }, { label: 'P1 keypad', value: '5:10 (est 7:00)' }, { label: 'Failed attempts', value: '6' }, { label: 'Hints taken', value: '2 (tier 1, tier 2)' }, { label: 'Fuse pulled', value: 'Camera — you blinded me' }, { label: 'Screens backtracked', value: '9' }],
+      observations: ['You reach for the dark first.', 'You blinded me at 12:04. I have fixed that.', 'You asked for help 3 times. You needed it twice.'],
+      decisions: { made: 41, accepted: 27, amended: 5, vetoed: 7, fallback: 2, topAction: 'flicker_lights', meanLatencyMs: 812.4 },
+    }, () => ui.toast('restart'));
+  </script>
+</body>
+</html>
